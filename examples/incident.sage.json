@@ -1,0 +1,134 @@
+{
+  "audit_chain": [
+    {
+      "hash": "8749d84e16915d9b66d1509e11b1b499b2c47ac6ee2cf99fa7c064ad7bed1ba6",
+      "index": 0,
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "span_hash": "1f57fc9dbf8f3cd0c38cb81ba9b27804c1f2d86d5bef209b1232384231ca9d96",
+      "span_id": "span_077e7faed0b34895abf364b9d460ac86",
+      "span_kind": "AGENT",
+      "span_name": "support_agent",
+      "timestamp": "2026-07-26T16:19:29.475193Z"
+    },
+    {
+      "hash": "db3e349c02d2ee182be40c10a68a297a7b20cfdd19e2e0ad1348659f53ca115c",
+      "index": 1,
+      "prev_hash": "8749d84e16915d9b66d1509e11b1b499b2c47ac6ee2cf99fa7c064ad7bed1ba6",
+      "span_hash": "6d4804efe62009c30a5ca129b8faa03729e44da1d4fac9a5a8a7d7aa8ef8f383",
+      "span_id": "span_4d1cc06a1abf4742b01ff80bf77ee02a",
+      "span_kind": "RETRIEVER",
+      "span_name": "fetch_customer_profile",
+      "timestamp": "2026-07-26T16:19:29.475101Z"
+    },
+    {
+      "hash": "302c651d8a706c413176dd36d572e1e202c43014c212dded7e0316e96348db0e",
+      "index": 2,
+      "prev_hash": "db3e349c02d2ee182be40c10a68a297a7b20cfdd19e2e0ad1348659f53ca115c",
+      "span_hash": "cc3d8155bb832746046d6389968c406505c66d4382d9dcf881b40fc9aa2e58ed",
+      "span_id": "span_b6b39024d3dc4eb3891c6843151418b7",
+      "span_kind": "LLM",
+      "span_name": "plan_update",
+      "timestamp": "2026-07-26T16:19:29.475151Z"
+    },
+    {
+      "hash": "92671ba9abcd185d590dabd6fce805f126ec9e180908fb31aba7cc00134347bf",
+      "index": 3,
+      "prev_hash": "302c651d8a706c413176dd36d572e1e202c43014c212dded7e0316e96348db0e",
+      "span_hash": "a9b8dd0b1f1c9d4462d8a0ec93b8bd95ef3cc1780c773c79a12f9b2e8fc90b86",
+      "span_id": "span_e0a8bad94f014b31831832a0f3c8a991",
+      "span_kind": "TOOL",
+      "span_name": "update_tier",
+      "timestamp": "2026-07-26T16:19:29.475186Z"
+    }
+  ],
+  "created_at": "2026-07-26T16:19:29.474965Z",
+  "metadata": {
+    "env": "demo"
+  },
+  "redactions": [],
+  "run_id": "run_9a725218fa514cb79e19a7ab08f8cbc6",
+  "schema_version": "sage.bundle.v1",
+  "spans": [
+    {
+      "attributes": {
+        "confidence": 0.82
+      },
+      "end_time": "2026-07-26T16:19:29.475193Z",
+      "error": "tool rejected stale schema",
+      "id": "span_077e7faed0b34895abf364b9d460ac86",
+      "inputs": {
+        "goal": "update customer tier"
+      },
+      "kind": "AGENT",
+      "name": "support_agent",
+      "outputs": {},
+      "parent_id": null,
+      "start_time": "2026-07-26T16:19:29.475040Z",
+      "status": "BLOCKED"
+    },
+    {
+      "attributes": {},
+      "end_time": "2026-07-26T16:19:29.475101Z",
+      "error": null,
+      "id": "span_4d1cc06a1abf4742b01ff80bf77ee02a",
+      "inputs": {
+        "customer_id": "cust_42"
+      },
+      "kind": "RETRIEVER",
+      "name": "fetch_customer_profile",
+      "outputs": {
+        "documents": [
+          {
+            "schema_version": "v1",
+            "tier": "gold"
+          }
+        ]
+      },
+      "parent_id": "span_077e7faed0b34895abf364b9d460ac86",
+      "start_time": "2026-07-26T16:19:29.475082Z",
+      "status": "OK"
+    },
+    {
+      "attributes": {},
+      "end_time": "2026-07-26T16:19:29.475151Z",
+      "error": null,
+      "id": "span_b6b39024d3dc4eb3891c6843151418b7",
+      "inputs": {
+        "prompt": "Choose tool args for tier update"
+      },
+      "kind": "LLM",
+      "name": "plan_update",
+      "outputs": {
+        "response": {
+          "args": {
+            "schema": "v1",
+            "tier": "gold"
+          },
+          "tool": "update_tier"
+        }
+      },
+      "parent_id": "span_077e7faed0b34895abf364b9d460ac86",
+      "start_time": "2026-07-26T16:19:29.475128Z",
+      "status": "OK"
+    },
+    {
+      "attributes": {},
+      "end_time": "2026-07-26T16:19:29.475186Z",
+      "error": "schema drift",
+      "id": "span_e0a8bad94f014b31831832a0f3c8a991",
+      "inputs": {
+        "schema": "v1",
+        "tier": "gold"
+      },
+      "kind": "TOOL",
+      "name": "update_tier",
+      "outputs": {
+        "error": "schema v2 required; v1 rejected"
+      },
+      "parent_id": "span_077e7faed0b34895abf364b9d460ac86",
+      "start_time": "2026-07-26T16:19:29.475174Z",
+      "status": "ERROR"
+    }
+  ],
+  "title": "stale_retrieval_example"
+}

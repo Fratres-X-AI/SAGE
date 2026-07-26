@@ -1,0 +1,393 @@
+{
+  "audit": {
+    "bundle_hash": "f7d159fa1f498b23939b53190a64506e386d4e664407e9cc907f02a78fd56661",
+    "chain": [
+      {
+        "hash": "d4f0bff69b9c8c0e8c7ca115cd96545db5e792a5a7f074f751833b39411752e1",
+        "index": 0,
+        "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "span_hash": "65d045f015a31a60cfa04eaf42bdfae623ef35dcca14bd72d5b74063e28b27cc",
+        "span_id": "span_410c6bebe33c4ac584617bb276462eef",
+        "span_name": "delegate_to_researcher",
+        "span_type": "handoff",
+        "timestamp": "2026-07-26T16:50:14.664308Z"
+      },
+      {
+        "hash": "691758b5ca9a89e3f5e5caa4d929ff4d1f996f228023d8d7d77ebb2ad4f658b5",
+        "index": 1,
+        "prev_hash": "d4f0bff69b9c8c0e8c7ca115cd96545db5e792a5a7f074f751833b39411752e1",
+        "span_hash": "c5a449e9f8f41b93ba8b312628f3705990ac9e18e72fd9a89536c835f45527a3",
+        "span_id": "span_42032bd85d6846c4a767dabedb30eb13",
+        "span_name": "fetch_customer_profile",
+        "span_type": "retrieval",
+        "timestamp": "2026-07-26T16:50:14.664308Z"
+      },
+      {
+        "hash": "b7f9de6533b5025ad212a61e89dbe3da47d1f3c02008854b7cd5b9de78f0e970",
+        "index": 2,
+        "prev_hash": "691758b5ca9a89e3f5e5caa4d929ff4d1f996f228023d8d7d77ebb2ad4f658b5",
+        "span_hash": "0a60babf022c8c58af514cfe95be2071924cb00d255400a379de7bfce0fd8bb3",
+        "span_id": "span_5d39208de40c4df1ad797c96674d3aed",
+        "span_name": "orchestrator",
+        "span_type": "agent",
+        "timestamp": "2026-07-26T16:50:14.664308Z"
+      },
+      {
+        "hash": "6ad568f62d08f932b7b2269ee21dfe0c70b27fe6b200e0be94e977323b3dcf65",
+        "index": 3,
+        "prev_hash": "b7f9de6533b5025ad212a61e89dbe3da47d1f3c02008854b7cd5b9de78f0e970",
+        "span_hash": "204963603c7e178765e852783b45f0bb8ed8e817e0aba055b2f2b79550fa5d3e",
+        "span_id": "span_7d55914ba74f410cba5bd54310093b1e",
+        "span_name": "plan_update",
+        "span_type": "llm",
+        "timestamp": "2026-07-26T16:50:14.664308Z"
+      },
+      {
+        "hash": "ddc9b5cd1b34a4c3dad92afb79dafd323d4eb4bddee75ce2e35ecb3f7c1fa2b6",
+        "index": 4,
+        "prev_hash": "6ad568f62d08f932b7b2269ee21dfe0c70b27fe6b200e0be94e977323b3dcf65",
+        "span_hash": "12eb47685c66d33e37b9f5e1ba11f42f396c13fef599905cfc9a849dcd761506",
+        "span_id": "span_e71e9e80ecdb4ef8b5e92f8142387f22",
+        "span_name": "update_tier",
+        "span_type": "tool",
+        "timestamp": "2026-07-26T16:50:14.664308Z"
+      }
+    ]
+  },
+  "audit_chain": [
+    {
+      "hash": "d4f0bff69b9c8c0e8c7ca115cd96545db5e792a5a7f074f751833b39411752e1",
+      "index": 0,
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "span_hash": "65d045f015a31a60cfa04eaf42bdfae623ef35dcca14bd72d5b74063e28b27cc",
+      "span_id": "span_410c6bebe33c4ac584617bb276462eef",
+      "span_name": "delegate_to_researcher",
+      "span_type": "handoff",
+      "timestamp": "2026-07-26T16:50:14.664308Z"
+    },
+    {
+      "hash": "691758b5ca9a89e3f5e5caa4d929ff4d1f996f228023d8d7d77ebb2ad4f658b5",
+      "index": 1,
+      "prev_hash": "d4f0bff69b9c8c0e8c7ca115cd96545db5e792a5a7f074f751833b39411752e1",
+      "span_hash": "c5a449e9f8f41b93ba8b312628f3705990ac9e18e72fd9a89536c835f45527a3",
+      "span_id": "span_42032bd85d6846c4a767dabedb30eb13",
+      "span_name": "fetch_customer_profile",
+      "span_type": "retrieval",
+      "timestamp": "2026-07-26T16:50:14.664308Z"
+    },
+    {
+      "hash": "b7f9de6533b5025ad212a61e89dbe3da47d1f3c02008854b7cd5b9de78f0e970",
+      "index": 2,
+      "prev_hash": "691758b5ca9a89e3f5e5caa4d929ff4d1f996f228023d8d7d77ebb2ad4f658b5",
+      "span_hash": "0a60babf022c8c58af514cfe95be2071924cb00d255400a379de7bfce0fd8bb3",
+      "span_id": "span_5d39208de40c4df1ad797c96674d3aed",
+      "span_name": "orchestrator",
+      "span_type": "agent",
+      "timestamp": "2026-07-26T16:50:14.664308Z"
+    },
+    {
+      "hash": "6ad568f62d08f932b7b2269ee21dfe0c70b27fe6b200e0be94e977323b3dcf65",
+      "index": 3,
+      "prev_hash": "b7f9de6533b5025ad212a61e89dbe3da47d1f3c02008854b7cd5b9de78f0e970",
+      "span_hash": "204963603c7e178765e852783b45f0bb8ed8e817e0aba055b2f2b79550fa5d3e",
+      "span_id": "span_7d55914ba74f410cba5bd54310093b1e",
+      "span_name": "plan_update",
+      "span_type": "llm",
+      "timestamp": "2026-07-26T16:50:14.664308Z"
+    },
+    {
+      "hash": "ddc9b5cd1b34a4c3dad92afb79dafd323d4eb4bddee75ce2e35ecb3f7c1fa2b6",
+      "index": 4,
+      "prev_hash": "6ad568f62d08f932b7b2269ee21dfe0c70b27fe6b200e0be94e977323b3dcf65",
+      "span_hash": "12eb47685c66d33e37b9f5e1ba11f42f396c13fef599905cfc9a849dcd761506",
+      "span_id": "span_e71e9e80ecdb4ef8b5e92f8142387f22",
+      "span_name": "update_tier",
+      "span_type": "tool",
+      "timestamp": "2026-07-26T16:50:14.664308Z"
+    }
+  ],
+  "bundle_id": "bundle_5a47da1a179f4e3e9e0c8fa90e42f7db",
+  "created_at": "2026-07-26T16:50:14.664308Z",
+  "metadata": {
+    "failure_mode": "stale_retrieval_schema"
+  },
+  "redaction_policy": {
+    "applied": true,
+    "key_fragments": [
+      "api_key",
+      "authorization",
+      "cookie",
+      "credential",
+      "password",
+      "secret",
+      "token"
+    ]
+  },
+  "redactions": [
+    {
+      "path": "spans.3.attributes.usage.prompt_tokens",
+      "reason": "sensitive_key"
+    },
+    {
+      "path": "spans.3.attributes.usage.completion_tokens",
+      "reason": "sensitive_key"
+    },
+    {
+      "path": "spans.3.data.usage.prompt_tokens",
+      "reason": "sensitive_key"
+    },
+    {
+      "path": "spans.3.data.usage.completion_tokens",
+      "reason": "sensitive_key"
+    }
+  ],
+  "root_cause_hint": "span_42032bd85d6846c4a767dabedb30eb13",
+  "run_id": "run_d00defb047b8416cb2c3963e03445567",
+  "schema_version": "1.0",
+  "source": {
+    "environment": "demo",
+    "framework": "custom",
+    "run_id": "run_d00defb047b8416cb2c3963e03445567"
+  },
+  "spans": [
+    {
+      "agent_id": "orchestrator",
+      "agent_role": null,
+      "attributes": {
+        "from_agent": "orchestrator",
+        "to_agent": "researcher"
+      },
+      "contribution_score": null,
+      "data": {
+        "context_passed": {
+          "customer_id": "cust_42",
+          "goal": "fetch profile"
+        },
+        "from_agent": "orchestrator",
+        "goal": null,
+        "next_action": null,
+        "output": {
+          "accepted": true
+        },
+        "plan_step": null,
+        "state_hash": null,
+        "to_agent": "researcher"
+      },
+      "end_time": "2026-07-26T16:50:14.664308Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {},
+      "is_suspected_root_cause": false,
+      "kind": "HANDOFF",
+      "name": "delegate_to_researcher",
+      "outputs": {
+        "accepted": true
+      },
+      "parent_id": "span_5d39208de40c4df1ad797c96674d3aed",
+      "span_id": "span_410c6bebe33c4ac584617bb276462eef",
+      "start_time": "2026-07-26T16:50:14.664308Z",
+      "status": "ok",
+      "trace_id": "bundle_5a47da1a179f4e3e9e0c8fa90e42f7db",
+      "type": "handoff"
+    },
+    {
+      "agent_id": "researcher",
+      "agent_role": "retriever",
+      "attributes": {},
+      "contribution_score": 0.9,
+      "data": {
+        "documents": [
+          {
+            "content_hash": "abc123",
+            "id": "doc_1",
+            "schema_version": "v1",
+            "score": 0.91,
+            "stale": true
+          }
+        ],
+        "output": {
+          "documents": [
+            {
+              "content_hash": "abc123",
+              "id": "doc_1",
+              "schema_version": "v1",
+              "score": 0.91,
+              "stale": true
+            }
+          ]
+        },
+        "query": "customer profile cust_42",
+        "source": "profile_index"
+      },
+      "end_time": "2026-07-26T16:50:14.664308Z",
+      "error": null,
+      "events": [],
+      "failure_context": "stale retrieval schema",
+      "inputs": {
+        "customer_id": "cust_42",
+        "query": "customer profile cust_42"
+      },
+      "is_suspected_root_cause": true,
+      "kind": "RETRIEVER",
+      "name": "fetch_customer_profile",
+      "outputs": {
+        "documents": [
+          {
+            "content_hash": "abc123",
+            "id": "doc_1",
+            "schema_version": "v1",
+            "score": 0.91,
+            "stale": true
+          }
+        ]
+      },
+      "parent_id": "span_5d39208de40c4df1ad797c96674d3aed",
+      "span_id": "span_42032bd85d6846c4a767dabedb30eb13",
+      "start_time": "2026-07-26T16:50:14.664308Z",
+      "status": "ok",
+      "trace_id": "bundle_5a47da1a179f4e3e9e0c8fa90e42f7db",
+      "type": "retrieval"
+    },
+    {
+      "agent_id": "orchestrator",
+      "agent_role": "coordinator",
+      "attributes": {
+        "state_hash": "state_v1"
+      },
+      "contribution_score": null,
+      "data": {
+        "goal": "update customer tier",
+        "next_action": "handoff",
+        "output": {},
+        "plan_step": "delegate",
+        "state_hash": "state_v1"
+      },
+      "end_time": "2026-07-26T16:50:14.664308Z",
+      "error": {
+        "message": "tool rejected stale schema",
+        "type": "CascadeError"
+      },
+      "events": [],
+      "failure_context": null,
+      "inputs": {
+        "goal": "update customer tier"
+      },
+      "is_suspected_root_cause": false,
+      "kind": "AGENT",
+      "name": "orchestrator",
+      "outputs": {},
+      "parent_id": null,
+      "span_id": "span_5d39208de40c4df1ad797c96674d3aed",
+      "start_time": "2026-07-26T16:50:14.664308Z",
+      "status": "error",
+      "trace_id": "bundle_5a47da1a179f4e3e9e0c8fa90e42f7db",
+      "type": "agent"
+    },
+    {
+      "agent_id": "planner",
+      "agent_role": "planner",
+      "attributes": {
+        "usage": {
+          "completion_tokens": "[REDACTED]",
+          "prompt_tokens": "[REDACTED]",
+          "total": 160
+        }
+      },
+      "contribution_score": null,
+      "data": {
+        "finish_reason": "stop",
+        "input": {
+          "prompt": "Choose tool args for tier update"
+        },
+        "model": "demo-llm",
+        "output": {
+          "response": {
+            "args": {
+              "schema": "v1",
+              "tier": "gold"
+            },
+            "tool": "update_tier"
+          }
+        },
+        "parameters": {
+          "temperature": 0.0
+        },
+        "usage": {
+          "completion_tokens": "[REDACTED]",
+          "prompt_tokens": "[REDACTED]",
+          "total": 160
+        }
+      },
+      "end_time": "2026-07-26T16:50:14.664308Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {
+        "prompt": "Choose tool args for tier update"
+      },
+      "is_suspected_root_cause": false,
+      "kind": "LLM",
+      "name": "plan_update",
+      "outputs": {
+        "response": {
+          "args": {
+            "schema": "v1",
+            "tier": "gold"
+          },
+          "tool": "update_tier"
+        }
+      },
+      "parent_id": "span_5d39208de40c4df1ad797c96674d3aed",
+      "span_id": "span_7d55914ba74f410cba5bd54310093b1e",
+      "start_time": "2026-07-26T16:50:14.664308Z",
+      "status": "ok",
+      "trace_id": "bundle_5a47da1a179f4e3e9e0c8fa90e42f7db",
+      "type": "llm"
+    },
+    {
+      "agent_id": "executor",
+      "agent_role": "tools",
+      "attributes": {},
+      "contribution_score": null,
+      "data": {
+        "input": {
+          "schema": "v1",
+          "tier": "gold"
+        },
+        "latency_ms": null,
+        "output": {
+          "error": "schema v2 required; v1 rejected"
+        },
+        "side_effects": false,
+        "success": false,
+        "tool_name": "update_tier"
+      },
+      "end_time": "2026-07-26T16:50:14.664308Z",
+      "error": {
+        "message": "schema drift",
+        "type": "SchemaError"
+      },
+      "events": [],
+      "failure_context": null,
+      "inputs": {
+        "schema": "v1",
+        "tier": "gold"
+      },
+      "is_suspected_root_cause": false,
+      "kind": "TOOL",
+      "name": "update_tier",
+      "outputs": {
+        "error": "schema v2 required; v1 rejected"
+      },
+      "parent_id": "span_5d39208de40c4df1ad797c96674d3aed",
+      "span_id": "span_e71e9e80ecdb4ef8b5e92f8142387f22",
+      "start_time": "2026-07-26T16:50:14.664308Z",
+      "status": "error",
+      "trace_id": "bundle_5a47da1a179f4e3e9e0c8fa90e42f7db",
+      "type": "tool"
+    }
+  ],
+  "status": "failed",
+  "title": "multi_agent_stale_retrieval"
+}

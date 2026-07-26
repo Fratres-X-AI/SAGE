@@ -1,0 +1,48 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build tooling
+        run: pip install -e ".[dev]" build
+      - name: Release gate
+        run: python scripts/release_check.py
+      - name: Tests
+        run: python -m pytest tests -q --tb=short
+      - name: Auditor kit
+        env:
+          SAGE_PACK_KEY: release-key
+        run: python examples/auditor_kit.py
+      - name: Build sdist/wheel
+        run: python -m build
+      - name: Generate SBOM
+        run: python scripts/generate_sbom.py dist/sbom.spdx.json
+      - name: Hash artifacts
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          dist = Path("dist")
+          out = {}
+          for p in sorted(dist.iterdir()):
+              if p.is_file():
+                  out[p.name] = hashlib.sha256(p.read_bytes()).hexdigest()
+          Path("dist/SHA256SUMS.json").write_text(json.dumps(out, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          print(json.dumps(out, indent=2, sort_keys=True))
+          PY
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sage-release
+          path: |
+            dist/*

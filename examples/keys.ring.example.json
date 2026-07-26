@@ -1,0 +1,18 @@
+{
+  "format": "sage.keys.v1",
+  "keys": {
+    "pack": {
+      "env": "SAGE_PACK_KEY"
+    },
+    "witness": {
+      "env": "SAGE_WITNESS_KEY"
+    },
+    "verify": {
+      "env": "SAGE_VERIFY_KEY"
+    },
+    "sign": {
+      "alg": "ed25519",
+      "public_key_env": "SAGE_SIGN_PUBLIC_KEY"
+    }
+  }
+}

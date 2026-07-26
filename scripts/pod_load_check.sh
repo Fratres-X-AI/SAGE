@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+ssh -o BatchMode=yes -i ~/.ssh/id_ed25519 -p 33922 root@157.157.221.29 'cat /proc/loadavg; echo ---; tail -n 5 /workspace/sage_soak_logs/burn_stdout.log; echo ---; tail -n 4 $(ls -t /workspace/sage_soak_logs/soak_max_*.status | head -1); echo ---; f=$(ls -t /workspace/sage_soak_logs/soak_max_20260726T191643Z.jsonl | head -1); echo ok=$(grep -c "\"ok\":true" "$f") fail=$(grep -c "\"ok\":false" "$f"); df -h /tmp | tail -1'

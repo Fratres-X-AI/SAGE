@@ -1,0 +1,209 @@
+{
+  "audit": {
+    "bundle_hash": "e76d49e51430871b105673bd884c78d6577e058c5d0da05022a37841fac04606",
+    "chain": [
+      {
+        "hash": "04edf81391bbeae79645a5e920eddba71ee965b2889dab283e8af96c034c16ea",
+        "index": 0,
+        "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "span_hash": "debe0cc05920824786fd9e5c8bd833a529e36cbdedd38c756089f6d5253fa285",
+        "span_id": "span_59eef7a6f02d4977ab9f1259ccfc1604",
+        "span_name": "echo",
+        "span_type": "tool",
+        "timestamp": "2026-07-26T17:05:28.666234Z"
+      },
+      {
+        "hash": "cbfede40572de30cf22b18fe01b25f846316fa49480f2c1be1a71cf9a1fedfe5",
+        "index": 1,
+        "prev_hash": "04edf81391bbeae79645a5e920eddba71ee965b2889dab283e8af96c034c16ea",
+        "span_hash": "0152ac0155ae78db0de42486ca41a6969849e092feceb2577e27218fa9516a5c",
+        "span_id": "span_bc71ad1358da415ea7c364fbe0df3a07",
+        "span_name": "run",
+        "span_type": "agent",
+        "timestamp": "2026-07-26T17:05:28.666234Z"
+      },
+      {
+        "hash": "0ee035a041dc475749d307496a2ac732875507968899be503ad020cec91dfe7b",
+        "index": 2,
+        "prev_hash": "cbfede40572de30cf22b18fe01b25f846316fa49480f2c1be1a71cf9a1fedfe5",
+        "span_hash": "985de0a81bd2dd5fa62dc8e109e82b8a2024b60a9b595448231cd9224f21041e",
+        "span_id": "span_e28580d475cf4adb82791e44d3231173",
+        "span_name": "think",
+        "span_type": "llm",
+        "timestamp": "2026-07-26T17:05:28.666234Z"
+      }
+    ]
+  },
+  "audit_chain": [
+    {
+      "hash": "04edf81391bbeae79645a5e920eddba71ee965b2889dab283e8af96c034c16ea",
+      "index": 0,
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "span_hash": "debe0cc05920824786fd9e5c8bd833a529e36cbdedd38c756089f6d5253fa285",
+      "span_id": "span_59eef7a6f02d4977ab9f1259ccfc1604",
+      "span_name": "echo",
+      "span_type": "tool",
+      "timestamp": "2026-07-26T17:05:28.666234Z"
+    },
+    {
+      "hash": "cbfede40572de30cf22b18fe01b25f846316fa49480f2c1be1a71cf9a1fedfe5",
+      "index": 1,
+      "prev_hash": "04edf81391bbeae79645a5e920eddba71ee965b2889dab283e8af96c034c16ea",
+      "span_hash": "0152ac0155ae78db0de42486ca41a6969849e092feceb2577e27218fa9516a5c",
+      "span_id": "span_bc71ad1358da415ea7c364fbe0df3a07",
+      "span_name": "run",
+      "span_type": "agent",
+      "timestamp": "2026-07-26T17:05:28.666234Z"
+    },
+    {
+      "hash": "0ee035a041dc475749d307496a2ac732875507968899be503ad020cec91dfe7b",
+      "index": 2,
+      "prev_hash": "cbfede40572de30cf22b18fe01b25f846316fa49480f2c1be1a71cf9a1fedfe5",
+      "span_hash": "985de0a81bd2dd5fa62dc8e109e82b8a2024b60a9b595448231cd9224f21041e",
+      "span_id": "span_e28580d475cf4adb82791e44d3231173",
+      "span_name": "think",
+      "span_type": "llm",
+      "timestamp": "2026-07-26T17:05:28.666234Z"
+    }
+  ],
+  "bundle_id": "user-123",
+  "created_at": "2026-07-26T17:05:28.663121Z",
+  "metadata": {
+    "blob_store": "C:\\Users\\Besn Daddy\\Desktop\\SAGE\\.sage\\blobs",
+    "blob_threshold": 1024,
+    "trace_id": "user-123"
+  },
+  "redaction_policy": {
+    "applied": true,
+    "key_fragments": [
+      "api_key",
+      "authorization",
+      "cookie",
+      "credential",
+      "password",
+      "secret",
+      "token"
+    ],
+    "value_patterns": [
+      "sk-[A-Za-z0-9_\\-]{8,}",
+      "Bearer\\s+[A-Za-z0-9_\\-\\.]+"
+    ]
+  },
+  "redactions": [],
+  "root_cause_hint": null,
+  "run_id": "user-123",
+  "schema_version": "1.0",
+  "source": {
+    "environment": "local",
+    "framework": "custom",
+    "run_id": "user-123"
+  },
+  "spans": [
+    {
+      "agent_id": null,
+      "agent_role": null,
+      "attributes": {},
+      "contribution_score": null,
+      "data": {
+        "input": {
+          "x": 1
+        },
+        "latency_ms": null,
+        "output": {
+          "result": "done:demo"
+        },
+        "side_effects": false,
+        "success": true,
+        "tool_name": "echo"
+      },
+      "end_time": "2026-07-26T17:05:28.666234Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {
+        "x": 1
+      },
+      "is_suspected_root_cause": false,
+      "kind": "TOOL",
+      "name": "echo",
+      "outputs": {
+        "result": "done:demo"
+      },
+      "parent_id": "span_bc71ad1358da415ea7c364fbe0df3a07",
+      "span_id": "span_59eef7a6f02d4977ab9f1259ccfc1604",
+      "start_time": "2026-07-26T17:05:28.666234Z",
+      "status": "ok",
+      "trace_id": "user-123",
+      "type": "tool"
+    },
+    {
+      "agent_id": null,
+      "agent_role": null,
+      "attributes": {},
+      "contribution_score": null,
+      "data": {
+        "goal": null,
+        "next_action": null,
+        "output": {},
+        "plan_step": null,
+        "state_hash": null
+      },
+      "end_time": "2026-07-26T17:05:28.666234Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {
+        "task": "demo"
+      },
+      "is_suspected_root_cause": false,
+      "kind": "AGENT",
+      "name": "run",
+      "outputs": {},
+      "parent_id": null,
+      "span_id": "span_bc71ad1358da415ea7c364fbe0df3a07",
+      "start_time": "2026-07-26T17:05:28.666234Z",
+      "status": "ok",
+      "trace_id": "user-123",
+      "type": "agent"
+    },
+    {
+      "agent_id": null,
+      "agent_role": null,
+      "attributes": {},
+      "contribution_score": null,
+      "data": {
+        "finish_reason": null,
+        "input": {
+          "prompt": "plan the task"
+        },
+        "model": "demo-llm",
+        "output": {
+          "text": "call tool"
+        },
+        "parameters": {},
+        "usage": {}
+      },
+      "end_time": "2026-07-26T17:05:28.666234Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {
+        "prompt": "plan the task"
+      },
+      "is_suspected_root_cause": false,
+      "kind": "LLM",
+      "name": "think",
+      "outputs": {
+        "text": "call tool"
+      },
+      "parent_id": "span_bc71ad1358da415ea7c364fbe0df3a07",
+      "span_id": "span_e28580d475cf4adb82791e44d3231173",
+      "start_time": "2026-07-26T17:05:28.666234Z",
+      "status": "ok",
+      "trace_id": "user-123",
+      "type": "llm"
+    }
+  ],
+  "status": "completed",
+  "title": "trace:user-123"
+}

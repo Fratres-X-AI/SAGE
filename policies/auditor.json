@@ -1,0 +1,15 @@
+{
+  "format": "sage.verify.policy.v1",
+  "policy_id": "auditor",
+  "require_sealed": true,
+  "forbid_live_journal": true,
+  "require_witness": true,
+  "require_witness_hmac": true,
+  "require_pack_hmac": true,
+  "require_pack_v2": true,
+  "require_pack_signature": true,
+  "require_blob_inventory": true,
+  "min_redaction_count": 0,
+  "min_span_count": 1,
+  "allowed_kinds": ["pack"]
+}

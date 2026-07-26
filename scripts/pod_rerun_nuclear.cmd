@@ -1,0 +1,2 @@
+@echo off
+"C:\Program Files\Git\bin\bash.exe" -lc "cd '/c/Users/Besn Daddy/Desktop/SAGE' && sed -i 's/\r$//' scripts/pod_nuclear.sh && scp -o BatchMode=yes -i ~/.ssh/id_ed25519 -P 33922 scripts/pod_nuclear.sh scripts/cgroup_cpus.sh root@157.157.221.29:/workspace/SAGE/scripts/ && ssh -o BatchMode=yes -T -i ~/.ssh/id_ed25519 -p 33922 root@157.157.221.29 'sed -i \"s/\\r$//\" /workspace/SAGE/scripts/*.sh && bash /workspace/SAGE/scripts/pod_nuclear.sh'"

@@ -1,0 +1,648 @@
+{
+  "audit": {
+    "bundle_hash": "0e984b9d509d1361beca484a901b9eaebda3fb4f57a560ee4a46858cb87ed1be",
+    "chain": [
+      {
+        "hash": "b66d5f2d9767584dfe2098e3c3599517d2da5aad28543794d310df932b542f8b",
+        "index": 0,
+        "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "span_hash": "51d8e0dd14f166abace0a06b5356b4674c46cf414f540eeab0dea1b0474aaa61",
+        "span_id": "span_1a847aecb5b84adc9ce07363c1d9f62f",
+        "span_name": "b_to_a_0",
+        "span_type": "handoff",
+        "timestamp": "2026-07-26T16:54:17.001421Z"
+      },
+      {
+        "hash": "b225770a86aca2b5446f3c03e48e56d49001a8887d97c5815d4cbc84c6905a22",
+        "index": 1,
+        "prev_hash": "b66d5f2d9767584dfe2098e3c3599517d2da5aad28543794d310df932b542f8b",
+        "span_hash": "b9a45dbb3d50b92632bd3841a92ba3fc66a19943d37f0ba65cc9e28105954877",
+        "span_id": "span_25e8b409a8494dac85705c8e70519fcc",
+        "span_name": "agent_b_work_0",
+        "span_type": "agent",
+        "timestamp": "2026-07-26T16:54:17.001421Z"
+      },
+      {
+        "hash": "7da5cc831a3a65933f850455103823a7a5ed35d3df9f4e07bdf252ffbf288b2c",
+        "index": 2,
+        "prev_hash": "b225770a86aca2b5446f3c03e48e56d49001a8887d97c5815d4cbc84c6905a22",
+        "span_hash": "8d61ea8378d0af2f43d2634bf8851d53be5e19148db5fed9ce64e228d0ecb051",
+        "span_id": "span_48f164ce591d46d8ac4bb5958723b181",
+        "span_name": "a_to_b_0",
+        "span_type": "handoff",
+        "timestamp": "2026-07-26T16:54:17.001421Z"
+      },
+      {
+        "hash": "2d6fba70618b56b85f355667de7fcf017874054f363063bc0aad5dccb451cc22",
+        "index": 3,
+        "prev_hash": "7da5cc831a3a65933f850455103823a7a5ed35d3df9f4e07bdf252ffbf288b2c",
+        "span_hash": "5693926c70e97e44f241c640fbced21ec4c41ab45775cd951a1bc49d7eb7a3c1",
+        "span_id": "span_80f88145fbf946d38e225239d046aa2b",
+        "span_name": "agent_b_work_1",
+        "span_type": "agent",
+        "timestamp": "2026-07-26T16:54:17.001421Z"
+      },
+      {
+        "hash": "80867d5d994fef28fd7e39ac7ed514de6219e5df211fe6c62d12a303b54460c2",
+        "index": 4,
+        "prev_hash": "2d6fba70618b56b85f355667de7fcf017874054f363063bc0aad5dccb451cc22",
+        "span_hash": "d0097e6ddc054928b307cb321f02186be49a92ec5fe9cdcac057cc557ef9b280",
+        "span_id": "span_831d4fcdad23431ba167a1dbe6b3f91b",
+        "span_name": "b_to_a_1",
+        "span_type": "handoff",
+        "timestamp": "2026-07-26T16:54:17.001421Z"
+      },
+      {
+        "hash": "16276ee448992977abca15003a6db6af5b969b68f6ec89162b66b981fc054a13",
+        "index": 5,
+        "prev_hash": "80867d5d994fef28fd7e39ac7ed514de6219e5df211fe6c62d12a303b54460c2",
+        "span_hash": "bd802ec84ec1a2ec7892ebd67c133cd1df6c03a8ebb6192c3cfac969e76ca184",
+        "span_id": "span_a49d4552616948be8e442bfc590054c4",
+        "span_name": "a_to_b_2",
+        "span_type": "handoff",
+        "timestamp": "2026-07-26T16:54:17.001421Z"
+      },
+      {
+        "hash": "28ffd26fdc158b9e2310b66a13987f3c973de457cada2a363a8c298e78ba949a",
+        "index": 6,
+        "prev_hash": "16276ee448992977abca15003a6db6af5b969b68f6ec89162b66b981fc054a13",
+        "span_hash": "5fa2b368259d148d94f92deebca426affdb548d9d4e6904846d0d3963cb4f911",
+        "span_id": "span_cf6d857b986f4b34948a4dbab453c45c",
+        "span_name": "a_to_b_1",
+        "span_type": "handoff",
+        "timestamp": "2026-07-26T16:54:17.001421Z"
+      },
+      {
+        "hash": "819f66b8e444a372bd8950ae71818fa3740d4f8c217d783e7308f9405f9c2235",
+        "index": 7,
+        "prev_hash": "28ffd26fdc158b9e2310b66a13987f3c973de457cada2a363a8c298e78ba949a",
+        "span_hash": "146326c8c8ad47ba4be0b385cfbea07020c1a174db1378b9c648108777c34204",
+        "span_id": "span_d5aa502528414db183cd684795a23810",
+        "span_name": "explode",
+        "span_type": "tool",
+        "timestamp": "2026-07-26T16:54:17.001421Z"
+      },
+      {
+        "hash": "7e8e1df9fe1420018dc1c01ce3f98d2d40d36481e0e9f1b4f5131bf423d515ae",
+        "index": 8,
+        "prev_hash": "819f66b8e444a372bd8950ae71818fa3740d4f8c217d783e7308f9405f9c2235",
+        "span_hash": "04dfd58c9ef1325a64295a6bb0b9a0283b3613e0b29cc58b838ba6407383f00e",
+        "span_id": "span_d88587e2bb7a4ae4a54eaa5c41c878a3",
+        "span_name": "agent_a",
+        "span_type": "agent",
+        "timestamp": "2026-07-26T16:54:17.001421Z"
+      },
+      {
+        "hash": "e2249e813837fe319be543cac7f365b6fa955c5f2b267833f99d53e2623b957f",
+        "index": 9,
+        "prev_hash": "7e8e1df9fe1420018dc1c01ce3f98d2d40d36481e0e9f1b4f5131bf423d515ae",
+        "span_hash": "7e6e03de038f45d0e216bad013310dcfffc51f638fe52d001f199042567727f2",
+        "span_id": "span_efdaa061c41e4ef484532cd25b3c6585",
+        "span_name": "b_to_a_2",
+        "span_type": "handoff",
+        "timestamp": "2026-07-26T16:54:17.001421Z"
+      },
+      {
+        "hash": "697a2d293736befd1922ee857e5322f3aefb288a6da262bf481e1f6ffac144cb",
+        "index": 10,
+        "prev_hash": "e2249e813837fe319be543cac7f365b6fa955c5f2b267833f99d53e2623b957f",
+        "span_hash": "53b0d1dd20fad8452843f84e2982dbb7fa57abf686cf20acd45189e8238e8e90",
+        "span_id": "span_f0d17192e2a2471da711990bdb4c5677",
+        "span_name": "agent_b_work_2",
+        "span_type": "agent",
+        "timestamp": "2026-07-26T16:54:17.001421Z"
+      }
+    ]
+  },
+  "audit_chain": [
+    {
+      "hash": "b66d5f2d9767584dfe2098e3c3599517d2da5aad28543794d310df932b542f8b",
+      "index": 0,
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "span_hash": "51d8e0dd14f166abace0a06b5356b4674c46cf414f540eeab0dea1b0474aaa61",
+      "span_id": "span_1a847aecb5b84adc9ce07363c1d9f62f",
+      "span_name": "b_to_a_0",
+      "span_type": "handoff",
+      "timestamp": "2026-07-26T16:54:17.001421Z"
+    },
+    {
+      "hash": "b225770a86aca2b5446f3c03e48e56d49001a8887d97c5815d4cbc84c6905a22",
+      "index": 1,
+      "prev_hash": "b66d5f2d9767584dfe2098e3c3599517d2da5aad28543794d310df932b542f8b",
+      "span_hash": "b9a45dbb3d50b92632bd3841a92ba3fc66a19943d37f0ba65cc9e28105954877",
+      "span_id": "span_25e8b409a8494dac85705c8e70519fcc",
+      "span_name": "agent_b_work_0",
+      "span_type": "agent",
+      "timestamp": "2026-07-26T16:54:17.001421Z"
+    },
+    {
+      "hash": "7da5cc831a3a65933f850455103823a7a5ed35d3df9f4e07bdf252ffbf288b2c",
+      "index": 2,
+      "prev_hash": "b225770a86aca2b5446f3c03e48e56d49001a8887d97c5815d4cbc84c6905a22",
+      "span_hash": "8d61ea8378d0af2f43d2634bf8851d53be5e19148db5fed9ce64e228d0ecb051",
+      "span_id": "span_48f164ce591d46d8ac4bb5958723b181",
+      "span_name": "a_to_b_0",
+      "span_type": "handoff",
+      "timestamp": "2026-07-26T16:54:17.001421Z"
+    },
+    {
+      "hash": "2d6fba70618b56b85f355667de7fcf017874054f363063bc0aad5dccb451cc22",
+      "index": 3,
+      "prev_hash": "7da5cc831a3a65933f850455103823a7a5ed35d3df9f4e07bdf252ffbf288b2c",
+      "span_hash": "5693926c70e97e44f241c640fbced21ec4c41ab45775cd951a1bc49d7eb7a3c1",
+      "span_id": "span_80f88145fbf946d38e225239d046aa2b",
+      "span_name": "agent_b_work_1",
+      "span_type": "agent",
+      "timestamp": "2026-07-26T16:54:17.001421Z"
+    },
+    {
+      "hash": "80867d5d994fef28fd7e39ac7ed514de6219e5df211fe6c62d12a303b54460c2",
+      "index": 4,
+      "prev_hash": "2d6fba70618b56b85f355667de7fcf017874054f363063bc0aad5dccb451cc22",
+      "span_hash": "d0097e6ddc054928b307cb321f02186be49a92ec5fe9cdcac057cc557ef9b280",
+      "span_id": "span_831d4fcdad23431ba167a1dbe6b3f91b",
+      "span_name": "b_to_a_1",
+      "span_type": "handoff",
+      "timestamp": "2026-07-26T16:54:17.001421Z"
+    },
+    {
+      "hash": "16276ee448992977abca15003a6db6af5b969b68f6ec89162b66b981fc054a13",
+      "index": 5,
+      "prev_hash": "80867d5d994fef28fd7e39ac7ed514de6219e5df211fe6c62d12a303b54460c2",
+      "span_hash": "bd802ec84ec1a2ec7892ebd67c133cd1df6c03a8ebb6192c3cfac969e76ca184",
+      "span_id": "span_a49d4552616948be8e442bfc590054c4",
+      "span_name": "a_to_b_2",
+      "span_type": "handoff",
+      "timestamp": "2026-07-26T16:54:17.001421Z"
+    },
+    {
+      "hash": "28ffd26fdc158b9e2310b66a13987f3c973de457cada2a363a8c298e78ba949a",
+      "index": 6,
+      "prev_hash": "16276ee448992977abca15003a6db6af5b969b68f6ec89162b66b981fc054a13",
+      "span_hash": "5fa2b368259d148d94f92deebca426affdb548d9d4e6904846d0d3963cb4f911",
+      "span_id": "span_cf6d857b986f4b34948a4dbab453c45c",
+      "span_name": "a_to_b_1",
+      "span_type": "handoff",
+      "timestamp": "2026-07-26T16:54:17.001421Z"
+    },
+    {
+      "hash": "819f66b8e444a372bd8950ae71818fa3740d4f8c217d783e7308f9405f9c2235",
+      "index": 7,
+      "prev_hash": "28ffd26fdc158b9e2310b66a13987f3c973de457cada2a363a8c298e78ba949a",
+      "span_hash": "146326c8c8ad47ba4be0b385cfbea07020c1a174db1378b9c648108777c34204",
+      "span_id": "span_d5aa502528414db183cd684795a23810",
+      "span_name": "explode",
+      "span_type": "tool",
+      "timestamp": "2026-07-26T16:54:17.001421Z"
+    },
+    {
+      "hash": "7e8e1df9fe1420018dc1c01ce3f98d2d40d36481e0e9f1b4f5131bf423d515ae",
+      "index": 8,
+      "prev_hash": "819f66b8e444a372bd8950ae71818fa3740d4f8c217d783e7308f9405f9c2235",
+      "span_hash": "04dfd58c9ef1325a64295a6bb0b9a0283b3613e0b29cc58b838ba6407383f00e",
+      "span_id": "span_d88587e2bb7a4ae4a54eaa5c41c878a3",
+      "span_name": "agent_a",
+      "span_type": "agent",
+      "timestamp": "2026-07-26T16:54:17.001421Z"
+    },
+    {
+      "hash": "e2249e813837fe319be543cac7f365b6fa955c5f2b267833f99d53e2623b957f",
+      "index": 9,
+      "prev_hash": "7e8e1df9fe1420018dc1c01ce3f98d2d40d36481e0e9f1b4f5131bf423d515ae",
+      "span_hash": "7e6e03de038f45d0e216bad013310dcfffc51f638fe52d001f199042567727f2",
+      "span_id": "span_efdaa061c41e4ef484532cd25b3c6585",
+      "span_name": "b_to_a_2",
+      "span_type": "handoff",
+      "timestamp": "2026-07-26T16:54:17.001421Z"
+    },
+    {
+      "hash": "697a2d293736befd1922ee857e5322f3aefb288a6da262bf481e1f6ffac144cb",
+      "index": 10,
+      "prev_hash": "e2249e813837fe319be543cac7f365b6fa955c5f2b267833f99d53e2623b957f",
+      "span_hash": "53b0d1dd20fad8452843f84e2982dbb7fa57abf686cf20acd45189e8238e8e90",
+      "span_id": "span_f0d17192e2a2471da711990bdb4c5677",
+      "span_name": "agent_b_work_2",
+      "span_type": "agent",
+      "timestamp": "2026-07-26T16:54:17.001421Z"
+    }
+  ],
+  "bundle_id": "bundle_0fff232e6886480182838b0b3d8acad1",
+  "created_at": "2026-07-26T16:54:17.001421Z",
+  "metadata": {
+    "failure_mode": "cyclic_handoff"
+  },
+  "redaction_policy": {
+    "applied": true,
+    "key_fragments": [
+      "api_key",
+      "authorization",
+      "cookie",
+      "credential",
+      "password",
+      "secret",
+      "token"
+    ],
+    "value_patterns": [
+      "sk-[A-Za-z0-9_\\-]{8,}",
+      "Bearer\\s+[A-Za-z0-9_\\-\\.]+"
+    ]
+  },
+  "redactions": [],
+  "root_cause_hint": "span_d5aa502528414db183cd684795a23810",
+  "run_id": "run_6bf1dc84f38643e3b89ed359885e7949",
+  "schema_version": "1.0",
+  "source": {
+    "environment": "demo",
+    "framework": "custom",
+    "run_id": "run_6bf1dc84f38643e3b89ed359885e7949"
+  },
+  "spans": [
+    {
+      "agent_id": "agent_b",
+      "agent_role": null,
+      "attributes": {
+        "from_agent": "agent_b",
+        "to_agent": "agent_a"
+      },
+      "contribution_score": null,
+      "data": {
+        "context_passed": {
+          "iteration": 0,
+          "note": "pong"
+        },
+        "from_agent": "agent_b",
+        "goal": null,
+        "next_action": null,
+        "output": {},
+        "plan_step": null,
+        "state_hash": null,
+        "to_agent": "agent_a"
+      },
+      "end_time": "2026-07-26T16:54:17.001421Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {},
+      "is_suspected_root_cause": false,
+      "kind": "HANDOFF",
+      "name": "b_to_a_0",
+      "outputs": {},
+      "parent_id": "span_d88587e2bb7a4ae4a54eaa5c41c878a3",
+      "span_id": "span_1a847aecb5b84adc9ce07363c1d9f62f",
+      "start_time": "2026-07-26T16:54:17.001421Z",
+      "status": "ok",
+      "trace_id": "bundle_0fff232e6886480182838b0b3d8acad1",
+      "type": "handoff"
+    },
+    {
+      "agent_id": "agent_b",
+      "agent_role": "worker",
+      "attributes": {},
+      "contribution_score": null,
+      "data": {
+        "goal": "ping-pong",
+        "next_action": "handoff",
+        "output": {},
+        "plan_step": "0",
+        "state_hash": null
+      },
+      "end_time": "2026-07-26T16:54:17.001421Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {
+        "iteration": 0
+      },
+      "is_suspected_root_cause": false,
+      "kind": "AGENT",
+      "name": "agent_b_work_0",
+      "outputs": {},
+      "parent_id": "span_d88587e2bb7a4ae4a54eaa5c41c878a3",
+      "span_id": "span_25e8b409a8494dac85705c8e70519fcc",
+      "start_time": "2026-07-26T16:54:17.001421Z",
+      "status": "ok",
+      "trace_id": "bundle_0fff232e6886480182838b0b3d8acad1",
+      "type": "agent"
+    },
+    {
+      "agent_id": "agent_a",
+      "agent_role": null,
+      "attributes": {
+        "from_agent": "agent_a",
+        "to_agent": "agent_b"
+      },
+      "contribution_score": null,
+      "data": {
+        "context_passed": {
+          "iteration": 0,
+          "note": "ping"
+        },
+        "from_agent": "agent_a",
+        "goal": null,
+        "next_action": null,
+        "output": {},
+        "plan_step": null,
+        "state_hash": null,
+        "to_agent": "agent_b"
+      },
+      "end_time": "2026-07-26T16:54:17.001421Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {},
+      "is_suspected_root_cause": false,
+      "kind": "HANDOFF",
+      "name": "a_to_b_0",
+      "outputs": {},
+      "parent_id": "span_d88587e2bb7a4ae4a54eaa5c41c878a3",
+      "span_id": "span_48f164ce591d46d8ac4bb5958723b181",
+      "start_time": "2026-07-26T16:54:17.001421Z",
+      "status": "ok",
+      "trace_id": "bundle_0fff232e6886480182838b0b3d8acad1",
+      "type": "handoff"
+    },
+    {
+      "agent_id": "agent_b",
+      "agent_role": "worker",
+      "attributes": {},
+      "contribution_score": null,
+      "data": {
+        "goal": "ping-pong",
+        "next_action": "handoff",
+        "output": {},
+        "plan_step": "1",
+        "state_hash": null
+      },
+      "end_time": "2026-07-26T16:54:17.001421Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {
+        "iteration": 1
+      },
+      "is_suspected_root_cause": false,
+      "kind": "AGENT",
+      "name": "agent_b_work_1",
+      "outputs": {},
+      "parent_id": "span_d88587e2bb7a4ae4a54eaa5c41c878a3",
+      "span_id": "span_80f88145fbf946d38e225239d046aa2b",
+      "start_time": "2026-07-26T16:54:17.001421Z",
+      "status": "ok",
+      "trace_id": "bundle_0fff232e6886480182838b0b3d8acad1",
+      "type": "agent"
+    },
+    {
+      "agent_id": "agent_b",
+      "agent_role": null,
+      "attributes": {
+        "from_agent": "agent_b",
+        "to_agent": "agent_a"
+      },
+      "contribution_score": null,
+      "data": {
+        "context_passed": {
+          "iteration": 1,
+          "note": "pong"
+        },
+        "from_agent": "agent_b",
+        "goal": null,
+        "next_action": null,
+        "output": {},
+        "plan_step": null,
+        "state_hash": null,
+        "to_agent": "agent_a"
+      },
+      "end_time": "2026-07-26T16:54:17.001421Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {},
+      "is_suspected_root_cause": false,
+      "kind": "HANDOFF",
+      "name": "b_to_a_1",
+      "outputs": {},
+      "parent_id": "span_d88587e2bb7a4ae4a54eaa5c41c878a3",
+      "span_id": "span_831d4fcdad23431ba167a1dbe6b3f91b",
+      "start_time": "2026-07-26T16:54:17.001421Z",
+      "status": "ok",
+      "trace_id": "bundle_0fff232e6886480182838b0b3d8acad1",
+      "type": "handoff"
+    },
+    {
+      "agent_id": "agent_a",
+      "agent_role": null,
+      "attributes": {
+        "from_agent": "agent_a",
+        "to_agent": "agent_b"
+      },
+      "contribution_score": null,
+      "data": {
+        "context_passed": {
+          "iteration": 2,
+          "note": "ping"
+        },
+        "from_agent": "agent_a",
+        "goal": null,
+        "next_action": null,
+        "output": {},
+        "plan_step": null,
+        "state_hash": null,
+        "to_agent": "agent_b"
+      },
+      "end_time": "2026-07-26T16:54:17.001421Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {},
+      "is_suspected_root_cause": false,
+      "kind": "HANDOFF",
+      "name": "a_to_b_2",
+      "outputs": {},
+      "parent_id": "span_d88587e2bb7a4ae4a54eaa5c41c878a3",
+      "span_id": "span_a49d4552616948be8e442bfc590054c4",
+      "start_time": "2026-07-26T16:54:17.001421Z",
+      "status": "ok",
+      "trace_id": "bundle_0fff232e6886480182838b0b3d8acad1",
+      "type": "handoff"
+    },
+    {
+      "agent_id": "agent_a",
+      "agent_role": null,
+      "attributes": {
+        "from_agent": "agent_a",
+        "to_agent": "agent_b"
+      },
+      "contribution_score": null,
+      "data": {
+        "context_passed": {
+          "iteration": 1,
+          "note": "ping"
+        },
+        "from_agent": "agent_a",
+        "goal": null,
+        "next_action": null,
+        "output": {},
+        "plan_step": null,
+        "state_hash": null,
+        "to_agent": "agent_b"
+      },
+      "end_time": "2026-07-26T16:54:17.001421Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {},
+      "is_suspected_root_cause": false,
+      "kind": "HANDOFF",
+      "name": "a_to_b_1",
+      "outputs": {},
+      "parent_id": "span_d88587e2bb7a4ae4a54eaa5c41c878a3",
+      "span_id": "span_cf6d857b986f4b34948a4dbab453c45c",
+      "start_time": "2026-07-26T16:54:17.001421Z",
+      "status": "ok",
+      "trace_id": "bundle_0fff232e6886480182838b0b3d8acad1",
+      "type": "handoff"
+    },
+    {
+      "agent_id": "agent_a",
+      "agent_role": null,
+      "attributes": {},
+      "contribution_score": null,
+      "data": {
+        "input": {
+          "reason": "recursion_budget_exceeded"
+        },
+        "latency_ms": null,
+        "output": {
+          "error": "max handoff depth exceeded"
+        },
+        "side_effects": false,
+        "success": false,
+        "tool_name": "explode"
+      },
+      "end_time": "2026-07-26T16:54:17.001421Z",
+      "error": {
+        "message": "cyclic recursion budget exceeded",
+        "type": "RecursionError"
+      },
+      "events": [],
+      "failure_context": "cyclic handoff exhaustion",
+      "inputs": {
+        "reason": "recursion_budget_exceeded"
+      },
+      "is_suspected_root_cause": true,
+      "kind": "TOOL",
+      "name": "explode",
+      "outputs": {
+        "error": "max handoff depth exceeded"
+      },
+      "parent_id": "span_d88587e2bb7a4ae4a54eaa5c41c878a3",
+      "span_id": "span_d5aa502528414db183cd684795a23810",
+      "start_time": "2026-07-26T16:54:17.001421Z",
+      "status": "error",
+      "trace_id": "bundle_0fff232e6886480182838b0b3d8acad1",
+      "type": "tool"
+    },
+    {
+      "agent_id": "agent_a",
+      "agent_role": "worker",
+      "attributes": {},
+      "contribution_score": null,
+      "data": {
+        "goal": "resolve ticket",
+        "next_action": "handoff",
+        "output": {},
+        "plan_step": "loop",
+        "state_hash": null
+      },
+      "end_time": "2026-07-26T16:54:17.001421Z",
+      "error": {
+        "message": "agent loop exhausted",
+        "type": "Error"
+      },
+      "events": [],
+      "failure_context": null,
+      "inputs": {
+        "goal": "resolve ticket"
+      },
+      "is_suspected_root_cause": false,
+      "kind": "AGENT",
+      "name": "agent_a",
+      "outputs": {},
+      "parent_id": null,
+      "span_id": "span_d88587e2bb7a4ae4a54eaa5c41c878a3",
+      "start_time": "2026-07-26T16:54:17.001421Z",
+      "status": "error",
+      "trace_id": "bundle_0fff232e6886480182838b0b3d8acad1",
+      "type": "agent"
+    },
+    {
+      "agent_id": "agent_b",
+      "agent_role": null,
+      "attributes": {
+        "from_agent": "agent_b",
+        "to_agent": "agent_a"
+      },
+      "contribution_score": null,
+      "data": {
+        "context_passed": {
+          "iteration": 2,
+          "note": "pong"
+        },
+        "from_agent": "agent_b",
+        "goal": null,
+        "next_action": null,
+        "output": {},
+        "plan_step": null,
+        "state_hash": null,
+        "to_agent": "agent_a"
+      },
+      "end_time": "2026-07-26T16:54:17.001421Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {},
+      "is_suspected_root_cause": false,
+      "kind": "HANDOFF",
+      "name": "b_to_a_2",
+      "outputs": {},
+      "parent_id": "span_d88587e2bb7a4ae4a54eaa5c41c878a3",
+      "span_id": "span_efdaa061c41e4ef484532cd25b3c6585",
+      "start_time": "2026-07-26T16:54:17.001421Z",
+      "status": "ok",
+      "trace_id": "bundle_0fff232e6886480182838b0b3d8acad1",
+      "type": "handoff"
+    },
+    {
+      "agent_id": "agent_b",
+      "agent_role": "worker",
+      "attributes": {},
+      "contribution_score": null,
+      "data": {
+        "goal": "ping-pong",
+        "next_action": "handoff",
+        "output": {},
+        "plan_step": "2",
+        "state_hash": null
+      },
+      "end_time": "2026-07-26T16:54:17.001421Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {
+        "iteration": 2
+      },
+      "is_suspected_root_cause": false,
+      "kind": "AGENT",
+      "name": "agent_b_work_2",
+      "outputs": {},
+      "parent_id": "span_d88587e2bb7a4ae4a54eaa5c41c878a3",
+      "span_id": "span_f0d17192e2a2471da711990bdb4c5677",
+      "start_time": "2026-07-26T16:54:17.001421Z",
+      "status": "ok",
+      "trace_id": "bundle_0fff232e6886480182838b0b3d8acad1",
+      "type": "agent"
+    }
+  ],
+  "status": "failed",
+  "title": "cyclic_agent_recursion"
+}

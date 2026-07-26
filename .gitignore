@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+.coverage
+htmlcov/
+artifacts/
+pod_export/
+ci-v2/
+.sage/
+.cursor/
+*.pt
+# Never commit key material
+*.ed25519.json
+**/ed25519.json
+keys.ring.json
+*keys*.ring.json
+!**/*.example.json
+!examples/keys.ring.example.json
+
