@@ -1,38 +1,47 @@
 # LinkedIn launch kit
 
-## Post (copy-paste)
+**Status:** repo public · **v2.2.0** · FSL-1.1-ALv2 · CI green on `main`
+
+**Image file:** `docs/assets/sage-linkedin-hero.png` (16:9 — upload this as the post media)
 
 ---
 
-Most agent stacks can *show* you a trace.
+## Post (copy-paste exactly)
 
-Almost none can **hand you evidence** another team can re-verify without trusting your UI.
+Most teams can *show* you an agent trace.
 
-That’s the gap **SAGE** fills.
+Almost none can hand you **evidence** another company can re-verify — offline — without trusting your UI.
 
-SAGE is open-source **agent incident forensics** — not observability SaaS, not an RCA scoreboard, not a chat wrapper.
+That’s the hole **SAGE** fills.
 
-You record a run → redact secrets before hash → seal a portable pack → an auditor verifies it offline with a pinned key and a fail-closed policy.
+SAGE is **agent incident forensics**.
 
-If the pack was tampered with, verify fails. Hard stop.
+Not observability SaaS.  
+Not an RCA leaderboard.  
+Not another chat wrapper.
 
-What it proves: **integrity + custody of what was recorded.**  
-What it does *not* prove: that the model told the truth. (We say that out loud on purpose.)
+You record a run → secrets get redacted before hash → you seal a portable pack → an auditor verifies it fail-closed with a pinned key.
 
-If you ship agents in production and you’ve ever had a “what did it actually do?” incident — star it, break it, or DM me. Looking for design partners who will be brutally honest.
+Tamper the pack? Verify dies. Hard stop.
+
+What it proves: **integrity and custody of what was recorded.**  
+What it does *not* prove: that the model told the truth.  
+(We put that in the threat model on purpose.)
+
+If you ship agents in production and you’ve ever had a “what did it *actually* do?” incident — this is for you.
 
 → https://github.com/Fratres-X-AI/SAGE
 
-FSL-1.1-ALv2 (Fair Source — not a free-for-all SaaS fork) · v2.2.0 · multi-OS CI · pinned Ed25519 · quarantine unpack
+Fair Source (**FSL-1.1-ALv2**) · v2.2.0 · multi-OS CI · pinned Ed25519 · quarantine unpack
+
+DM me **partner** if you want help wiring one real incident path this week. Looking for brutal feedback, not vanity stars.
 
 ---
 
-## Image
+## Posting checklist
 
-Use `docs/assets/sage-linkedin-hero.png` (16:9). Upload as the post image — don’t bury the link only in comments.
-
-## Hashtags (optional, keep light)
-
-`#AIAgents` `#LLMOps` `#SecurityEngineering` `#FairSource` `#Forensics`
-
-Avoid flooding. 3–4 max.
+1. Upload `docs/assets/sage-linkedin-hero.png` as the image (not a GitHub screenshot)
+2. Paste the post above
+3. Optional tags (max 3–4): `#AIAgents` `#LLMOps` `#SecurityEngineering` `#FairSource`
+4. GitHub → Settings → Social preview → same hero image
+5. Don’t apologize in comments. Answer DMs with the partner offer.
