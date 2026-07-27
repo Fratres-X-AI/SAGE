@@ -1,110 +1,118 @@
-# SAGE — Agent Incident Forensics
+<p align="center">
+  <img src="docs/assets/sage-linkedin-hero.png" alt="SAGE — Agent Incident Forensics" width="100%" />
+</p>
 
-**Fail-closed security tool** for portable agent incident evidence: redactable, hash-chained, third-party verifiable.
+<h1 align="center">SAGE</h1>
+<p align="center"><strong>Agent Incident Forensics</strong></p>
+<p align="center">
+  Portable, redactable, hash-chained evidence for agent runs.<br/>
+  Seal it. Ship it. Re-verify it — without trusting the producer’s UI.
+</p>
 
-SAGE is **not** a chat UI, not an RCA leaderboard, and not “observability SaaS.” Trace products already exist. The gap is a **backend-neutral forensic artifact** you can seal, ship, and re-verify without trusting the producer.
+<p align="center">
+  <a href="https://github.com/Fratres-X-AI/SAGE/actions/workflows/ci.yml"><img src="https://github.com/Fratres-X-AI/SAGE/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License" /></a>
+  <a href="https://github.com/Fratres-X-AI/SAGE/releases/tag/v2.1.1"><img src="https://img.shields.io/badge/release-v2.1.1-informational.svg" alt="Release" /></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python" /></a>
+</p>
 
-**Current release: v2.1.1** — OSS-ready custody toolkit: quarantine unpack, **pinned** Ed25519 signatures, auditor policy/kit, release gate, threat-matrix. Formats remain on the 2.0 freeze. See [`COMPATIBILITY.md`](COMPATIBILITY.md), [`THREAT_MODEL.md`](THREAT_MODEL.md), [`SECURITY.md`](SECURITY.md), [`RELEASE.md`](RELEASE.md), [`CHANGELOG.md`](CHANGELOG.md).
+---
 
-## Security loop (production)
+## Why SAGE exists
+
+Traces show you a story in a dashboard.  
+**SAGE gives you an artifact another team can fail-closed verify offline.**
+
+Observability products already exist. The gap is a **backend-neutral forensic pack**: redacted before hash, content-addressed blobs, custody MAC, optional pinned Ed25519, third-party `sage verify`.
+
+SAGE is a **security tool**, not a chat UI, not an RCA leaderboard, and not “AI observability SaaS.”
+
+## 60-second loop
 
 ```bash
-pip install -e ".[dev]"          # includes cryptography for Ed25519 tests
-# optional: pip install -e ".[sign]"  # Ed25519 only, without full dev set
-
-# record → pack v2 → strict policy → handoff kit
+pip install -e ".[dev]"
 export SAGE_PACK_KEY="replace-me"
+
 python examples/security_verify_loop.py
 
-sage doctor
 sage verify evidence.sage.tar.gz \
   --policy policies/strict.json \
   --witness \
   --hmac-key "$SAGE_PACK_KEY" \
   --receipt verify.receipt.json
-
-sage verify-receipt verify.receipt.json --verify-key "$SAGE_PACK_KEY"
-sage version
 ```
 
-Optional asymmetric custody (**pinned** public key required to verify):
+Auditor posture (pinned signature):
 
 ```bash
-sage keygen --out ~/.sage/ed25519.json   # keep private; do not commit
-export SAGE_SIGN_PRIVATE_KEY=...         # from keygen JSON
-export SAGE_SIGN_PUBLIC_KEY=...          # auditors pin this
-sage pack incident.sage.json --out evidence.sage.tar.gz --hmac-key "$SAGE_PACK_KEY" --sign
-sage verify evidence.sage.tar.gz \
-  --policy policies/auditor.json \
-  --hmac-key "$SAGE_PACK_KEY" \
-  --require-signature \
-  --public-key "$SAGE_SIGN_PUBLIC_KEY"
 python examples/auditor_kit.py
+# docs: docs/AUDITOR_KIT.md · docs/VERIFY_RUNBOOK.md
 ```
-
-Auditor offline path: [`docs/VERIFY_RUNBOOK.md`](docs/VERIFY_RUNBOOK.md) · pinned-signature kit: [`docs/AUDITOR_KIT.md`](docs/AUDITOR_KIT.md).
-
-## What v2 freezes
-
-| Surface | Format / API |
-|---------|----------------|
-| Journal | `sage.journal.v1` |
-| Pack | `sage.pack.v2` (custody-bound HMAC) |
-| Policy / receipt / keys | `sage.verify.policy.v1` / `receipt.v1` / `keys.v1` |
-| Bundle schema | `1.0` |
-| Python API | `sage.version.STABLE_PUBLIC_API` |
-
-Breaking these requires **3.0**. Migration: [`MIGRATION_v2.md`](MIGRATION_v2.md).
-
-## Core capabilities
-
-| Pillar | Mechanism |
-|--------|-----------|
-| Recorder | `SageRecorder` — sanitize-on-close, redact-before-hash, CAS |
-| Journal | Live WAL + sealed `manifest_seal` + `merkle_root` |
-| Verify | `sage verify` + policies + CAS inventory + witness |
-| Pack / handoff | Pack v2 + `sage handoff` offline kit |
-| Custody | `witness.jsonl` + HMAC receipts |
-| Adapters | LangChain callback, CrewAI/AutoGen run wrappers, OTel tap/export |
-| Heal | Sealed `HealCapability` boundaries |
-| Research | `sage research *` (explicitly non-forensic) |
 
 ```python
 from sage import SageRecorder
 
-with SageRecorder(trace_id="user-123") as recorder:
+with SageRecorder(trace_id="incident-42") as rec:
     agent.run(task)
-recorder.export("incident.sage.json")
+rec.export("incident.sage.json")
 ```
+
+## What you get
+
+| Capability | Detail |
+|------------|--------|
+| **Recorder** | Sanitize-on-close, redact-before-hash, CAS offload |
+| **Journal** | Crash-safe live WAL → sealed manifest + merkle |
+| **Pack v2** | Portable `.sage.tar.gz` with custody-bound HMAC |
+| **Verify** | Policies, blob inventory, witness, receipts |
+| **Signatures** | Optional Ed25519 — **pinned key required** (TOFU refused) |
+| **Handoff** | Offline auditor kit (`sage handoff`) |
+| **Adapters** | LangChain callback, CrewAI/AutoGen wrappers, OTel tap |
+
+Formats are frozen under the [2.x compatibility covenant](COMPATIBILITY.md).
+
+## Explicit non-claims
+
+- Does **not** prove the agent / LLM / tools told the truth  
+- Research (`sage research *`) is **not** forensic custody  
+- Software HMAC/Ed25519 ≠ HSM identity — see [THREAT_MODEL.md](THREAT_MODEL.md)
 
 ## Install
 
 ```bash
-pip install -e ".[dev]"    # core (stdlib) + tests + cryptography
-pip install -e ".[sign]"   # optional Ed25519 only
-pip install -e ".[tui]"    # optional Textual inspect TUI
-pip install -e ".[attr]"   # optional research helpers
+pip install -e ".[dev]"     # core + tests + cryptography
+pip install -e ".[sign]"    # Ed25519 only
+pip install -e ".[tui]"     # optional inspect TUI
 ```
 
-## Tests
+Core recorder / CAS / verify / CLI remain **stdlib-only**.
+
+## Prove it locally
 
 ```bash
-pytest                     # forensics suite (attribution research ignored by default)
 python scripts/release_check.py
-python scripts/ci_smoke.py
-python examples/security_verify_loop.py
+pytest -q
 python examples/auditor_kit.py
 sage doctor
 ```
 
-CI matrix: Ubuntu / Windows / macOS × Python 3.10 / 3.12.
+CI: Ubuntu · Windows · macOS × Python 3.10 / 3.12.
 
-## Explicit non-claims
+## Docs
 
-- SAGE does **not** prove the agent/LLM/tools told the truth.
-- Synthetic attribution benches are a **research harness**, not production RCA.
-- HMAC custody ≠ hardware-backed identity. See the threat model.
+| Doc | Purpose |
+|-----|---------|
+| [VERIFY_RUNBOOK.md](docs/VERIFY_RUNBOOK.md) | Record → ship → auditor re-verify |
+| [AUDITOR_KIT.md](docs/AUDITOR_KIT.md) | Pinned-signature verify posture |
+| [THREAT_MODEL.md](THREAT_MODEL.md) | Assets, adversaries, non-goals |
+| [SECURITY.md](SECURITY.md) | Supported versions / reporting |
+| [RELEASE.md](RELEASE.md) | Tag / publish checklist |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | PR bar for a security tool |
+
+## Design partners
+
+If you run agents in production and want sealed incident packs on **one** real path — open an issue or reach out. We want brutal feedback, not vanity stars.
 
 ## License
 
-Apache-2.0 — see [`LICENSE`](LICENSE).
+[Apache-2.0](LICENSE)
