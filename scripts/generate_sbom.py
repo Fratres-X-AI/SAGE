@@ -53,8 +53,8 @@ def main() -> int:
                 "name": "sage-incident-bundles",
                 "versionInfo": version,
                 "downloadLocation": "NOASSERTION",
-                "licenseConcluded": "Apache-2.0",
-                "licenseDeclared": "Apache-2.0",
+                "licenseConcluded": "FSL-1.1-ALv2",
+                "licenseDeclared": "FSL-1.1-ALv2",
             }
         ],
         "files": [file_entry(p) for p in files],

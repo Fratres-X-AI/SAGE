@@ -2,6 +2,8 @@
 
 SAGE is a **fail-closed security / forensics** toolkit. PRs that weaken verify defaults, skip quarantine, or treat research as custody will be rejected.
 
+By contributing, you agree your contributions are licensed under the same [FSL-1.1-ALv2](LICENSE) terms as the project (and the future Apache-2.0 grant therein).
+
 ## Setup
 
 ```bash

@@ -44,6 +44,7 @@ def main() -> int:
         "THREAT_MODEL.md",
         "COMPATIBILITY.md",
         "LICENSE",
+        "COMMERCIAL.md",
         "docs/VERIFY_RUNBOOK.md",
         "docs/AUDITOR_KIT.md",
         "RELEASE.md",
@@ -56,6 +57,11 @@ def main() -> int:
     runbook = (ROOT / "docs" / "VERIFY_RUNBOOK.md").read_text(encoding="utf-8")
     if "require-signature" not in runbook or "AUDITOR_KIT" not in runbook:
         fail("VERIFY_RUNBOOK.md missing pinned-signature / auditor kit path")
+    lic = (ROOT / "LICENSE").read_text(encoding="utf-8")
+    if "FSL-1.1-ALv2" not in lic or "Competing Use" not in lic:
+        fail("LICENSE must be FSL-1.1-ALv2 with Competing Use terms")
+    if 'license = { text = "FSL-1.1-ALv2" }' not in (ROOT / "pyproject.toml").read_text(encoding="utf-8"):
+        fail("pyproject.toml must declare FSL-1.1-ALv2")
     for rel in required:
         if not (ROOT / rel).is_file():
             fail(f"missing required file {rel}")

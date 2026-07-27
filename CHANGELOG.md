@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.2.0 — 2026-07-26
+
+### License
+
+- Relicensed from Apache-2.0 to **FSL-1.1-ALv2** (Functional Source License — same family Sentry uses)
+- Competing commercial products/services require a commercial license (see `COMMERCIAL.md`)
+- Each version converts to Apache-2.0 two years after availability
+- Prior git snapshots that shipped under Apache-2.0 remain Apache for those commits only
+
 ## 2.1.1 — 2026-07-26
 
 ### OSS launch polish (no outside services)

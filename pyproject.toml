@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sage-incident-bundles"
-version = "2.1.1"
+version = "2.2.0"
 description = "Fail-closed agent incident forensics: portable sealed bundles, custody, and third-party verify."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Apache-2.0" }
+license = { text = "FSL-1.1-ALv2" }
 authors = [
-  { name = "SAGE Contributors" }
+  { name = "Fratres-X-AI" }
 ]
 keywords = [
   "agents",
@@ -26,7 +26,7 @@ classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
   "Intended Audience :: Information Technology",
-  "License :: OSI Approved :: Apache Software License",
+  "License :: Other/Proprietary License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",

@@ -23,7 +23,7 @@ If you ship agents in production and you’ve ever had a “what did it actually
 
 → https://github.com/Fratres-X-AI/SAGE
 
-Apache-2.0 · v2.1.1 · multi-OS CI · pinned Ed25519 · quarantine unpack
+FSL-1.1-ALv2 (Fair Source — not a free-for-all SaaS fork) · v2.2.0 · multi-OS CI · pinned Ed25519 · quarantine unpack
 
 ---
 
@@ -33,6 +33,6 @@ Use `docs/assets/sage-linkedin-hero.png` (16:9). Upload as the post image — do
 
 ## Hashtags (optional, keep light)
 
-`#AIAgents` `#LLMOps` `#SecurityEngineering` `#OpenSource` `#Forensics`
+`#AIAgents` `#LLMOps` `#SecurityEngineering` `#FairSource` `#Forensics`
 
 Avoid flooding. 3–4 max.

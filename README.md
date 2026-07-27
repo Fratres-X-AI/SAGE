@@ -11,8 +11,8 @@
 
 <p align="center">
   <a href="https://github.com/Fratres-X-AI/SAGE/actions/workflows/ci.yml"><img src="https://github.com/Fratres-X-AI/SAGE/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License" /></a>
-  <a href="https://github.com/Fratres-X-AI/SAGE/releases/tag/v2.1.1"><img src="https://img.shields.io/badge/release-v2.1.1-informational.svg" alt="Release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-FSL--1.1--ALv2-red.svg" alt="License" /></a>
+  <a href="https://github.com/Fratres-X-AI/SAGE/releases/tag/v2.2.0"><img src="https://img.shields.io/badge/release-v2.2.0-informational.svg" alt="Release" /></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python" /></a>
 </p>
 
@@ -115,4 +115,10 @@ If you run agents in production and want sealed incident packs on **one** real p
 
 ## License
 
-[Apache-2.0](LICENSE)
+**[FSL-1.1-ALv2](LICENSE)** — Functional Source License (Fair Source).
+
+- ✅ Internal use, education, research, self-host for your company  
+- ❌ Competing commercial product/SaaS without a commercial license  
+- ⏱ Converts to Apache-2.0 **2 years** after each version’s availability  
+
+Commercial terms: [COMMERCIAL.md](COMMERCIAL.md) · License FAQ: [fsl.software](https://fsl.software/)

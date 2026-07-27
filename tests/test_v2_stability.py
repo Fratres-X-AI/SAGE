@@ -67,5 +67,5 @@ def test_sbom_script(tmp_path: Path):
     )
     assert proc.returncode == 0, proc.stderr
     data = json.loads(out.read_text(encoding="utf-8"))
-    assert data["packages"][0]["licenseDeclared"] == "Apache-2.0"
+    assert data["packages"][0]["licenseDeclared"] == "FSL-1.1-ALv2"
     assert data["files"]
