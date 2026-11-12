@@ -109,7 +109,11 @@ def test_recorder_journal_blobs_and_export_have_no_canaries(tmp_path: Path) -> N
     out = rec.export(tmp_path / "bundle.json")
     _assert_no_canary(out.read_text(encoding="utf-8"), "exported bundle")
     _assert_no_canary(_read_tree(journal), "journal directory")
-    _assert_no_canary(_read_tree(tmp_path / "blobs"), "blob store")
+    blob_files = [p for p in (tmp_path / "blobs").rglob("*") if p.is_file()]
+    assert blob_files, "large retrieval output should have been offloaded to the blob store"
+    blob_text = _read_tree(tmp_path / "blobs")
+    assert "order history line for Fictional Co" in blob_text
+    _assert_no_canary(blob_text, "blob store")
     for span in rec.bundle.spans:
         _assert_no_canary(json.dumps(span.to_dict()), f"in-memory span {span.name}")
 
