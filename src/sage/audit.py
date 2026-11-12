@@ -113,17 +113,66 @@ def redact_value(
     return value
 
 
+def resolve_redaction_rules(
+    policy: Mapping[str, Any] | None,
+    *,
+    key_fragments: tuple[str, ...] | None = None,
+    value_patterns: tuple[str, ...] | None = None,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    policy = policy or {}
+    fragments = key_fragments or tuple(policy.get("key_fragments") or DEFAULT_REDACTION_KEYS)
+    patterns = value_patterns or tuple(policy.get("value_patterns") or DEFAULT_VALUE_PATTERNS)
+    return fragments, patterns
+
+
+def redact_span(
+    span: Any,
+    *,
+    key_fragments: tuple[str, ...],
+    value_patterns: tuple[str, ...],
+    base: str = "span",
+    redacted_paths: list[dict[str, str]] | None = None,
+) -> None:
+    """Apply the redaction policy in place to every span field that can carry captured text.
+
+    Identity fields (ids, type, status, timestamps, error.type) are left intact.
+    """
+
+    def value(v: Any, path: str) -> Any:
+        return redact_value(
+            v,
+            path=path,
+            redacted_paths=redacted_paths,
+            key_fragments=key_fragments,
+            value_patterns=value_patterns,
+        )
+
+    def text(v: str, path: str) -> str:
+        return _scrub_string(v, path=path, redacted_paths=redacted_paths, value_patterns=value_patterns)
+
+    span.inputs = value(span.inputs, f"{base}.inputs")
+    span.outputs = value(span.outputs, f"{base}.outputs")
+    span.attributes = value(span.attributes, f"{base}.attributes")
+    span.data = value(span.data, f"{base}.data")
+    span.events = [value(ev, f"{base}.events.{ei}") for ei, ev in enumerate(span.events or [])]
+    if span.name:
+        span.name = text(span.name, f"{base}.name") or span.name
+    if span.failure_context:
+        span.failure_context = text(span.failure_context, f"{base}.failure_context")
+    if span.error is not None:
+        span.error.message = text(span.error.message or "", f"{base}.error.message")
+        if span.error.stack:
+            span.error.stack = text(span.error.stack, f"{base}.error.stack")
+
+
 def redact_bundle(
     bundle: IncidentBundle,
     *,
     key_fragments: tuple[str, ...] | None = None,
     value_patterns: tuple[str, ...] | None = None,
 ) -> IncidentBundle:
-    fragments = key_fragments or tuple(
-        bundle.redaction_policy.get("key_fragments") or DEFAULT_REDACTION_KEYS
-    )
-    patterns = value_patterns or tuple(
-        bundle.redaction_policy.get("value_patterns") or DEFAULT_VALUE_PATTERNS
+    fragments, patterns = resolve_redaction_rules(
+        bundle.redaction_policy, key_fragments=key_fragments, value_patterns=value_patterns
     )
     # Bypass strict validation during clone of in-progress/raw bundles.
     raw = copy.deepcopy(bundle.to_dict())
@@ -137,48 +186,22 @@ def redact_bundle(
         key_fragments=fragments,
         value_patterns=patterns,
     )
+    if clone.title:
+        clone.title = _scrub_string(
+            clone.title, path="title", redacted_paths=redactions, value_patterns=patterns
+        ) or clone.title
+    if isinstance(clone.root_cause_hint, str):
+        clone.root_cause_hint = _scrub_string(
+            clone.root_cause_hint, path="root_cause_hint", redacted_paths=redactions, value_patterns=patterns
+        )
     for span_index, span in enumerate(clone.spans):
-        base = f"spans.{span_index}"
-        span.inputs = redact_value(
-            span.inputs,
-            path=f"{base}.inputs",
-            redacted_paths=redactions,
+        redact_span(
+            span,
             key_fragments=fragments,
             value_patterns=patterns,
-        )
-        span.outputs = redact_value(
-            span.outputs,
-            path=f"{base}.outputs",
+            base=f"spans.{span_index}",
             redacted_paths=redactions,
-            key_fragments=fragments,
-            value_patterns=patterns,
         )
-        span.attributes = redact_value(
-            span.attributes,
-            path=f"{base}.attributes",
-            redacted_paths=redactions,
-            key_fragments=fragments,
-            value_patterns=patterns,
-        )
-        span.data = redact_value(
-            span.data,
-            path=f"{base}.data",
-            redacted_paths=redactions,
-            key_fragments=fragments,
-            value_patterns=patterns,
-        )
-        span.events = [
-            redact_value(
-                ev,
-                path=f"{base}.events.{ei}",
-                redacted_paths=redactions,
-                key_fragments=fragments,
-                value_patterns=patterns,
-            )
-            if isinstance(ev, dict)
-            else ev
-            for ei, ev in enumerate(span.events or [])
-        ]
     clone.redactions = [*clone.redactions, *redactions]
     clone.redaction_policy = {
         **clone.redaction_policy,

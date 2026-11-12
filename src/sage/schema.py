@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Iterable, Literal
@@ -90,6 +91,15 @@ def new_id(prefix: str) -> str:
     return f"{prefix}_{uuid4().hex}"
 
 
+# Absolute frame paths reveal home directories and host layout; keep only the last two components.
+_ABS_FRAME_PATH = re.compile(r'File "([^"]+)"')
+
+
+def _short_frame_path(match: "re.Match[str]") -> str:
+    parts = re.split(r"[\\/]+", match.group(1))
+    return f'File "{"/".join(parts[-2:])}"'
+
+
 @dataclass
 class SpanError:
     type: str
@@ -114,6 +124,14 @@ class SpanError:
                 message=str(value.get("message") or ""),
                 stack=value.get("stack"),
             )
+        if isinstance(value, BaseException):
+            stack = None
+            if value.__traceback__ is not None:
+                import traceback
+
+                frames = traceback.format_tb(value.__traceback__)
+                stack = _ABS_FRAME_PATH.sub(_short_frame_path, "".join(frames[-8:]))[-4000:] or None
+            return cls(type=type(value).__name__, message=str(value), stack=stack)
         return cls(type="Error", message=str(value))
 
 

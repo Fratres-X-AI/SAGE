@@ -38,3 +38,44 @@ jobs:
         run: python examples/auditor_kit.py
       - name: Strict handoff smoke
         run: python scripts/ci_smoke.py
+
+  langchain-integration:
+    runs-on: ubuntu-latest
+    env:
+      LANGCHAIN_TRACING_V2: "false"
+      LANGSMITH_TRACING: "false"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install (pinned langchain-core)
+        run: pip install -e ".[dev,langchain]" -c constraints/langchain.txt
+      - name: Record tested dependency set
+        run: pip freeze | grep -iE "langchain|langsmith|pydantic|sage-incident"
+      - name: Real LangChain integration + demo tests
+        run: python -m pytest tests/integration_langchain tests/test_redaction_canaries.py tests/test_handoff_binding.py -q --tb=short
+      - name: Consultancy demo (all scenarios, both modes)
+        run: |
+          for s in success tool-error tool-timeout; do
+            for m in sync async; do
+              python examples/consultancy_demo.py --scenario "$s" --mode "$m" --out "demo-runs/$s-$m"
+            done
+          done
+
+  wheel-recipient:
+    runs-on: ubuntu-latest
+    env:
+      LANGCHAIN_TRACING_V2: "false"
+      LANGSMITH_TRACING: "false"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install producer tooling
+        run: pip install -e ".[dev,langchain]" -c constraints/langchain.txt
+      - name: Build wheel + sdist
+        run: python -m build
+      - name: Installed-wheel recipient verify (offline)
+        run: python scripts/recipient_check.py --dist dist --work "$RUNNER_TEMP/recipient"

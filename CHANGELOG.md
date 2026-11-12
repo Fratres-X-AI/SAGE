@@ -1,5 +1,44 @@
 # Changelog
 
+## 2.3.0rc1 — 2026-11-12 (release candidate, not published)
+
+Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fixtures/compat_v2_2_0`).
+
+### Redaction coverage
+
+- The redaction policy now applies to every span field that can carry captured text: error message,
+  error stack, failure context, events, and span name, in addition to inputs, outputs, attributes, and data.
+  Bundle title, root-cause hint, and live-journal manifest metadata are covered too.
+- Live-journal sanitization and final sealing share one implementation (`sage.audit.redact_span`).
+- Exceptions record their class name (for example `PermissionError`) and a bounded traceback whose frame
+  paths are trimmed to the last two components.
+
+### LangChain integration (optional `[langchain]` extra, pinned `langchain-core==1.8.0`)
+
+- `SageLangChainCallback` subclasses LangChain's `BaseCallbackHandler` when installed and handles chat
+  models, LLMs, chains, and tools, with explicit `run_id` / `parent_run_id` mapping and per-instance state.
+- New `AsyncSageLangChainCallback` for `ainvoke`.
+- New `assert_complete()` raises `CaptureIncompleteError` when runs were left open or capture failed.
+- Tests run the real LangChain callback manager (`tests/integration_langchain`).
+
+### Handoff kits
+
+- `create_handoff()` / `sage handoff` enforce an explicit policy exactly as given; missing key material is a
+  setup error instead of a silently weaker policy. New `public_key`, `sign`, and `overwrite` options.
+- Kits are built in a staging directory and promoted only after verification and receipt generation.
+  An existing kit is not overwritten by default, and a failed rebuild leaves it unchanged.
+- `verify_handoff.py` binds the receipt to the freshly verified pack (`expect_fingerprint`, bundle hash,
+  bundle id, policy digest), requires the receipt, supports `--public-key`, and uses exit codes
+  0 (verified), 1 (integrity or policy failure), 2 (setup problem).
+
+### Demonstration and packaging
+
+- `examples/consultancy_demo.py`: synthetic client-support workflow through real LangChain with
+  `--scenario success|tool-error|tool-timeout --mode sync|async --out DIR`; persistent kit, separate keys.
+- `scripts/recipient_check.py`: installs the built wheel into a fresh environment outside the checkout and
+  verifies a kit with no network access.
+- CI adds a pinned LangChain integration job and an installed-wheel recipient job.
+
 ## 2.2.0 — 2026-07-26
 
 ### License

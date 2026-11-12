@@ -389,6 +389,11 @@ class SageRecorder:
     def mark_failure(self, span_id: str, *, note: str | None = None) -> None:
         span = self._get_span(span_id)
         span.is_suspected_root_cause = True
+        if note and self.sanitize_on_close:
+            from sage.audit import _scrub_string, resolve_redaction_rules
+
+            _fragments, patterns = resolve_redaction_rules(self.bundle.redaction_policy)
+            note = _scrub_string(note, path="failure_context", redacted_paths=None, value_patterns=patterns)
         span.failure_context = note
         self.bundle.root_cause_hint = span_id
         self.bundle.status = "failed"

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sage-incident-bundles"
-version = "2.2.0"
+version = "2.3.0rc1"
 description = "Fail-closed agent incident forensics: portable sealed bundles, custody, and third-party verify."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -41,6 +41,8 @@ dependencies = []
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "build>=1.0", "cryptography>=42"]
 sign = ["cryptography>=42"]
+# Exact version exercised by tests/integration_langchain and the consultancy demo.
+langchain = ["langchain-core==1.8.0"]
 attr = ["numpy>=1.26"]
 train = ["numpy>=1.26", "torch>=2.2"]
 tui = ["textual>=0.80"]

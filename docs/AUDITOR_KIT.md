@@ -23,7 +23,7 @@ sage verify evidence.sage.tar.gz \
   --hmac-key "$SAGE_PACK_KEY" \
   --witness \
   --require-signature \
-  --public-key "$SAGE_SIGN_PUBLIC_KEY" \
+  --public-key="$SAGE_SIGN_PUBLIC_KEY" \
   --receipt verify.receipt.json
 
 sage verify-receipt verify.receipt.json --verify-key "$SAGE_PACK_KEY"
@@ -32,8 +32,39 @@ sage verify-receipt verify.receipt.json --verify-key "$SAGE_PACK_KEY"
 ## Demo (local)
 
 ```bash
-python examples/auditor_kit.py
+python examples/auditor_kit.py                # quick in-memory loop (temporary output)
+python examples/consultancy_demo.py --scenario tool-error --out demo-runs/run-01   # persistent kit
 ```
+
+## Handoff kits
+
+`sage handoff` (or `create_handoff()`) builds a directory with the pack, `policy.json`,
+`verify.receipt.json`, `verify_handoff.py`, and `HANDOFF.md`:
+
+```bash
+sage handoff incident.journal --out-dir kit --policy policies/auditor.json \
+  --hmac-key "$SAGE_PACK_KEY" --sign --public-key="$SAGE_SIGN_PUBLIC_KEY"
+```
+
+- The policy you pass is enforced as given. Missing HMAC key or signature pin is a setup error
+  (exit 2), never a weaker policy.
+- The kit is built in staging and promoted only after verification; an existing kit is not replaced
+  unless you pass `--overwrite`.
+
+The recipient installs the SAGE wheel (no checkout, no LangChain needed), then:
+
+```bash
+export SAGE_PACK_KEY="..."                    # provisioned separately
+python kit/verify_handoff.py --public-key="<pinned base64 key>"
+```
+
+`verify_handoff.py` verifies the pack under `policy.json`, then checks that the receipt's MAC is
+valid **and** that its fingerprint, bundle hash, bundle id, and policy digest match the fresh
+verification. Exit codes: `0` verified, `1` integrity/policy/receipt failure, `2` setup problem.
+
+Provision key material outside the kit: the HMAC key and the producer's public key (confirm its
+SHA-256 fingerprint out of band). Signing private keys never leave the producer. HMAC proves that a
+holder of the shared key produced the MAC; only the signature ties the pack to the private-key holder.
 
 ## Explicit non-claims
 

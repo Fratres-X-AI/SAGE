@@ -42,7 +42,7 @@ sage verify evidence.sage.tar.gz \
   --hmac-key "$SAGE_PACK_KEY" \
   --witness \
   --require-signature \
-  --public-key "$SAGE_SIGN_PUBLIC_KEY" \
+  --public-key="$SAGE_SIGN_PUBLIC_KEY" \
   --receipt verify.receipt.json
 ```
 

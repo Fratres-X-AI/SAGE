@@ -102,21 +102,12 @@ def prepare_span_for_disk(
     blob_threshold: int = DEFAULT_THRESHOLD,
 ) -> SageSpan:
     """Redact secrets and CAS-offload large payloads before any journal append."""
-    from sage.audit import DEFAULT_REDACTION_KEYS, DEFAULT_VALUE_PATTERNS
+    from sage.audit import redact_span, resolve_redaction_rules
     from sage.schema import IncidentBundle
 
     clone = SageSpan.from_dict(copy.deepcopy(span.to_dict()))
-    policy = redaction_policy or {}
-    fragments = tuple(policy.get("key_fragments") or DEFAULT_REDACTION_KEYS)
-    patterns = tuple(policy.get("value_patterns") or DEFAULT_VALUE_PATTERNS)
-    clone.inputs = redact_value(clone.inputs, key_fragments=fragments, value_patterns=patterns)
-    clone.outputs = redact_value(clone.outputs, key_fragments=fragments, value_patterns=patterns)
-    clone.attributes = redact_value(clone.attributes, key_fragments=fragments, value_patterns=patterns)
-    clone.data = redact_value(clone.data, key_fragments=fragments, value_patterns=patterns)
-    clone.events = [
-        redact_value(ev, key_fragments=fragments, value_patterns=patterns) if isinstance(ev, dict) else ev
-        for ev in (clone.events or [])
-    ]
+    fragments, patterns = resolve_redaction_rules(redaction_policy)
+    redact_span(clone, key_fragments=fragments, value_patterns=patterns)
 
     if blob_store is not None:
         shell = IncidentBundle(title="tmp", spans=[clone], metadata={})
@@ -131,6 +122,10 @@ def apply_sanitized_fields(target: SageSpan, prepared: SageSpan) -> None:
     target.outputs = prepared.outputs
     target.attributes = prepared.attributes
     target.data = prepared.data
+    target.events = prepared.events
+    target.name = prepared.name
+    target.failure_context = prepared.failure_context
+    target.error = prepared.error
 
 
 def sanitize_span_inplace(
@@ -343,16 +338,23 @@ def write_live_manifest(
     root.mkdir(parents=True, exist_ok=True)
     path = root / MANIFEST_NAME
     tip = chain_tip or ZERO_HASH
+    from sage.audit import _scrub_string, resolve_redaction_rules
+
+    fragments, patterns = resolve_redaction_rules(bundle.redaction_policy)
+    title = _scrub_string(bundle.title, path="title", redacted_paths=None, value_patterns=patterns)
+    hint = bundle.root_cause_hint
+    if isinstance(hint, str):
+        hint = _scrub_string(hint, path="root_cause_hint", redacted_paths=None, value_patterns=patterns)
     manifest = {
         "schema_version": bundle.schema_version,
         "bundle_id": bundle.bundle_id,
-        "title": bundle.title,
+        "title": title or bundle.title,
         "created_at": bundle.created_at,
         "source": bundle.source.to_dict(),
         "status": "partial",
-        "root_cause_hint": bundle.root_cause_hint,
+        "root_cause_hint": hint,
         "metadata": {
-            **bundle.metadata,
+            **redact_value(bundle.metadata, key_fragments=fragments, value_patterns=patterns),
             "storage": "sage.journal.v1",
             "spans_file": SPANS_JSONL,
             "chain_file": CHAIN_JSONL,

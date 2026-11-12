@@ -10,6 +10,7 @@ dist/
 *.egg-info/
 .coverage
 htmlcov/
+demo-runs/
 artifacts/
 pod_export/
 ci-v2/

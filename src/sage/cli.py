@@ -136,7 +136,7 @@ def _cmd_verify_receipt(args: argparse.Namespace) -> int:
 
 
 def _cmd_handoff(args: argparse.Namespace) -> int:
-    from sage.handoff import create_handoff
+    from sage.handoff import HandoffSetupError, create_handoff
 
     try:
         out = create_handoff(
@@ -146,7 +146,12 @@ def _cmd_handoff(args: argparse.Namespace) -> int:
             policy=args.policy,
             actor=args.actor,
             key_id=args.key_id,
+            public_key=args.public_key,
+            sign=True if args.sign else None,
+            overwrite=args.overwrite,
         )
+    except HandoffSetupError as exc:
+        return _fail(str(exc), code=2)
     except Exception as exc:
         return _fail(str(exc))
     print(str(out))
@@ -570,6 +575,17 @@ def build_parser() -> argparse.ArgumentParser:
     handoff.add_argument("--policy", default=None)
     handoff.add_argument("--actor", default="handoff")
     handoff.add_argument("--key-id", default=None)
+    handoff.add_argument(
+        "--public-key",
+        default=None,
+        help="Pinned Ed25519 public key (base64) used to verify the signature before promotion",
+    )
+    handoff.add_argument(
+        "--sign",
+        action="store_true",
+        help="Ed25519-sign the pack (needs SAGE_SIGN_PRIVATE_KEY / .[sign])",
+    )
+    handoff.add_argument("--overwrite", action="store_true", help="Replace a non-empty --out-dir")
     handoff.set_defaults(func=_cmd_handoff)
 
     pack = sub.add_parser("pack", help="Pack bundle/journal + CAS blobs into portable .sage.tar.gz")

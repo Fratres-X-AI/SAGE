@@ -37,8 +37,14 @@ def main() -> int:
         fail(f"README.md does not mention {__version__}")
 
     security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
-    if __version__.split(".")[0:2] == ["2", "1"] and "2.1" not in security:
-        fail("SECURITY.md should mention 2.1.x support line")
+    line = ".".join(__version__.split(".")[0:2]) + ".x"
+    if line not in security:
+        fail(f"SECURITY.md supported-versions table must list {line}")
+    release_doc = (ROOT / "RELEASE.md").read_text(encoding="utf-8")
+    if re.search(r'git tag -a "v\d', release_doc):
+        fail("RELEASE.md must not hard-code a version in the tag command")
+    if re.search(r"^langchain\s*=\s*\[\"langchain-core==\d", pyproject, re.M) is None:
+        fail("pyproject.toml [langchain] extra must pin langchain-core exactly")
 
     required = [
         "THREAT_MODEL.md",
@@ -52,7 +58,9 @@ def main() -> int:
         "policies/auditor.json",
         "examples/security_verify_loop.py",
         "examples/auditor_kit.py",
+        "examples/consultancy_demo.py",
         "examples/keys.ring.example.json",
+        "scripts/recipient_check.py",
     ]
     runbook = (ROOT / "docs" / "VERIFY_RUNBOOK.md").read_text(encoding="utf-8")
     if "require-signature" not in runbook or "AUDITOR_KIT" not in runbook:

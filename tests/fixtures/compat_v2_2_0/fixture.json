@@ -1,0 +1,6 @@
+{
+  "sage_version": "2.2.0",
+  "bundle": "bundle.sage.json",
+  "pack": "evidence.sage.tar.gz",
+  "hmac_key": "sage-compat-fixture-key-not-secret"
+}
