@@ -353,6 +353,41 @@ def test_batch_mode_commits_within_its_interval_without_a_flush(tmp_path):
             pytest.fail("the background writer did not commit the span")
 
 
+def test_reader_polling_the_live_manifest_does_not_fail_the_writer(tmp_path):
+    import threading
+
+    journal = tmp_path / "j"
+    stop = threading.Event()
+
+    def poll() -> None:
+        while not stop.is_set():
+            try:
+                with open(journal / MANIFEST_NAME, "rb") as handle:  # a slow reader keeps it open
+                    handle.read()
+                    time.sleep(0.005)
+            except OSError:
+                pass
+            time.sleep(0.005)
+
+    with SageRecorder(
+        "polled", blob_store=tmp_path / "blobs", journal_dir=journal, register_trace=False,
+        journal_durability="batch", journal_batch_interval_ms=1,
+    ) as rec:
+        reader = threading.Thread(target=poll, daemon=True)
+        reader.start()
+        try:
+            for i in range(60):
+                with rec.tool_call(f"s{i}", inputs={"i": i}) as tool:
+                    tool.set_output(ok=True)
+                time.sleep(0.002)
+            rec.flush_journal()
+        finally:
+            stop.set()
+            reader.join()
+        manifest = json.loads((journal / MANIFEST_NAME).read_text(encoding="utf-8"))
+        assert manifest["span_count"] == 60
+
+
 def test_span_mode_is_on_disk_when_end_span_returns(tmp_path):
     from sage.journal import verify_journal
 

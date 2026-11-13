@@ -8,6 +8,7 @@ from pathlib import Path
 from sage.audit import require_normal_form, require_verified
 from sage.blobs import BlobStore, rehydrate_bundle_dict
 from sage.errors import BlobIntegrityError
+from sage.locks import replace_file
 from sage.journal import is_journal_path, journal_root, load_journal, save_journal
 from sage.schema import SCHEMA_VERSION, IncidentBundle
 
@@ -123,7 +124,7 @@ def save_bundle(
             handle.write(payload)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(tmp_name, str(output))
+        replace_file(tmp_name, str(output))
     except Exception:
         Path(tmp_name).unlink(missing_ok=True)
         raise

@@ -23,6 +23,7 @@ from sage.audit import (
 )
 from sage.blobs import BlobStore, DEFAULT_THRESHOLD, DeferredSyncStore, offload_span
 from sage.errors import ChainIntegrityError, FaultRecoveryError, JournalWriteError, SageError
+from sage.locks import replace_file
 from sage.fault import CrashBoundary, RecoveryReport
 from sage.schema import AuditBlock, BundleSource, IncidentBundle, SCHEMA_VERSION, SageSpan, utc_now
 
@@ -238,7 +239,7 @@ def _atomic_write_text(path: Path, text: str, *, fsync: bool = True) -> None:
             handle.flush()
             if fsync:
                 os.fsync(handle.fileno())
-        os.replace(tmp, str(path))
+        replace_file(tmp, str(path))
     except Exception:
         Path(tmp).unlink(missing_ok=True)
         raise
@@ -268,7 +269,7 @@ def save_journal(bundle: IncidentBundle, directory: str | Path) -> JournalPaths:
                 handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(tmp, str(paths.spans))
+        replace_file(tmp, str(paths.spans))
     except Exception:
         Path(tmp).unlink(missing_ok=True)
         raise
@@ -281,7 +282,7 @@ def save_journal(bundle: IncidentBundle, directory: str | Path) -> JournalPaths:
                 handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(c_tmp, str(paths.chain))
+        replace_file(c_tmp, str(paths.chain))
     except Exception:
         Path(c_tmp).unlink(missing_ok=True)
         raise

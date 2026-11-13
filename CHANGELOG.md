@@ -28,6 +28,9 @@ Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fix
     `SignatureMismatchError` (a subclass, so existing handlers still catch it).
   - Malformed tar, gzip, JSON, receipt, and policy input could escape as raw Python exceptions. They
     are now `ChainIntegrityError` or `ReceiptMismatchError`.
+- On Windows, a process reading a live journal's manifest could make the recorder's manifest update
+  fail (`PermissionError` from `os.replace`), which stopped the background writer. Journal, bundle,
+  and blob writes now retry the replace for up to 5 seconds while a reader has the file open.
 
 
 ### Recipient experience

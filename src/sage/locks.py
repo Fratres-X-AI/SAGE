@@ -8,6 +8,27 @@ from pathlib import Path
 from sage.errors import SplitBrainError
 
 DEFAULT_LOCK_ROOT = Path(".sage") / "locks"
+REPLACE_RETRY_S = 5.0
+
+
+def replace_file(src: str | Path, dst: str | Path, *, retry_s: float = REPLACE_RETRY_S) -> None:
+    """`os.replace` that waits out readers on Windows.
+
+    Windows refuses to replace a file while another handle has it open (`PermissionError`), so a
+    reader polling a live manifest would otherwise fail the writer. Retries with backoff for up to
+    `retry_s`, then raises the last error. Other platforms replace on the first try.
+    """
+    deadline = time.monotonic() + retry_s
+    delay = 0.001
+    while True:
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if os.name != "nt" or time.monotonic() >= deadline:
+                raise
+            time.sleep(delay)
+            delay = min(delay * 2, 0.05)
 
 
 class TraceFileLock:

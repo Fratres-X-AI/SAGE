@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, BinaryIO
 
 from sage.errors import BlobIntegrityError, MemoryBudgetExceeded
+from sage.locks import replace_file
 
 BLOB_MARKER = "$sage_blob"
 DEFAULT_THRESHOLD = 1024  # bytes
@@ -458,7 +459,7 @@ def tempfile_mkstemp(root: Path) -> tuple[int, str]:
 
 
 def _atomic_replace(src: Path, dst: Path) -> None:
-    os.replace(str(src), str(dst))
+    replace_file(str(src), str(dst))
 
 
 def _atomic_gzip_replace(src: Path, dst: Path) -> None:
@@ -472,7 +473,7 @@ def _atomic_gzip_replace(src: Path, dst: Path) -> None:
         fout.flush()
         os.fsync(fout.fileno())
     src.unlink(missing_ok=True)
-    os.replace(str(tmp_gz), str(dst))
+    replace_file(str(tmp_gz), str(dst))
 
 
 class DeferredSyncStore:
