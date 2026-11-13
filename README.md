@@ -123,12 +123,55 @@ tools, sync and async, one callback instance per workflow run. Parallel branches
 token streaming, LangGraph, and other framework versions are not validated. Callback errors surface
 to the caller (`raise_error=True`), so start in development or staging.
 
+## Live journal durability
+
+Pass `journal_dir=` to write a crash-recoverable journal while the run is in progress. Closed spans
+are redacted, offloaded, hash-chained, and appended to `spans.jsonl` / `chain.jsonl`.
+`journal_durability=` selects when they reach the disk:
+
+| Mode | When a closed span is on disk | What a crash can lose |
+|------|-------------------------------|-----------------------|
+| `"span"` | Before `end_span` returns (four fsyncs per span) | Nothing that was closed |
+| `"batch"` (default) | A background thread group-commits with fsync when the oldest waiting span is 50 ms old or 256 spans wait, whichever comes first | Spans closed inside that window, plus the commit under way |
+| `"close"` | Same background writes, but no fsync until `flush_journal()` or the seal | Process crash: as `"batch"`. Operating-system crash or power loss: anything since the last `flush_journal()` |
+
+```python
+with SageRecorder(trace_id="incident-42", journal_dir="run.journal", journal_durability="batch") as rec:
+    ...
+    rec.flush_journal()   # optional checkpoint: returns once everything closed so far is fsynced
+```
+
+- The window is tunable: `journal_batch_interval_ms=` and `journal_batch_max_spans=`. It is also
+  bounded: once 4 × `journal_batch_max_spans` spans (1,024 by default) are uncommitted, `end_span`
+  waits for the disk. When the disk is slow, the window stretches in time but not past that count.
+- `SAGE_JOURNAL_DURABILITY=span|batch|close` sets the mode when the argument is not given. The
+  adapters (`SageLangChainCallback`, `wrap_agent_run`, `attach_otel_tap`, `instrument`, `wrap_run`)
+  accept `journal_durability=` too.
+- Sealing (leaving the `with` block, `finalize()`, `export()`) always flushes, fsyncs, and stops the
+  writer thread. A write failure on the writer thread is raised as `JournalWriteError` from the next
+  `end_span`, `flush_journal()`, or the seal. It is never dropped.
+- In `"batch"` and `"close"` mode, read the live files only after `flush_journal()`; `end_span`
+  returning no longer means the span is on disk. Use `"span"` if you need that guarantee.
+- After a crash, `sage audit <journal>` (or `sage.journal.recover_journal`) returns the intact
+  prefix. A journal killed in the middle of a commit can fail `sage verify-journal` until recovered.
+- Offloaded blobs follow the same schedule: in `"batch"` and `"close"` mode they are fsynced in
+  groups before the journal lines that refer to them are committed (and always before the seal). A
+  blob never gets its content-address name before it has been fsynced; until then only the
+  recording process can read it.
+- The mode changes timing only. Record formats and every hash are identical in all three modes, and
+  journals written by earlier releases verify unchanged.
+
+Measure it on your own hardware: `python scripts/measure_overhead.py --mode journal --durability all`
+prints per-span medians by mode and payload size as JSON. CI runs the same script on Linux and keeps
+the result as the `journal-benchmark` artifact. These are measurements, not a service-level
+commitment.
+
 ## What you get
 
 | Capability | Detail |
 |------------|--------|
 | **Recorder** | Sanitize-on-close, redact-before-hash, CAS offload |
-| **Journal** | Crash-safe live WAL → sealed manifest + merkle |
+| **Journal** | Crash-safe live WAL (durability `span` / `batch` / `close`) → sealed manifest + merkle |
 | **Pack v2** | Portable `.sage.tar.gz` with custody-bound HMAC |
 | **Verify** | Policies, blob inventory, witness, receipts |
 | **Signatures** | Optional Ed25519 — **pinned key required** (TOFU refused) |

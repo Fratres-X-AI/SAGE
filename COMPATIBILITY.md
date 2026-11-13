@@ -53,6 +53,10 @@ Not validated, and not claimed: parallel branches (`RunnableParallel`, `batch`, 
 (`stream`, `astream`, `astream_events`, token callbacks), retrievers, agent action/finish events,
 retry and custom events, LangGraph, real provider SDKs, and langchain-core versions other than 1.8.0.
 
+Live-journal durability (`journal_durability="span" | "batch" | "close"`, default `"batch"` since
+2.3.0) changes when records are fsynced, not what is written. `sage.journal.v1` is unchanged; a live
+journal holds the same lines and the same hashes in every mode.
+
 ## Frozen formats (2.0)
 
 | Format ID | Meaning |
