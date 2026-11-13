@@ -84,6 +84,11 @@ value. A key that matched a rule shows as `<key #N>` in paths.
 Exit codes: `0` no findings, `1` findings, `2` setup or usage error (path missing, not a SAGE
 artifact, unreadable pack, unknown rule).
 
+A handoff kit directory is not a SAGE artifact, so `sage scan <kit>` exits `2`. Scan the kit's
+`evidence.sage.tar.gz` instead. The kit's convenience notes (`INCIDENT_SUMMARY.md`,
+`build_record.json`, `HANDOFF.md`) are not scanned and are not covered by the evidence hashes.
+Read them yourself before you share the kit.
+
 Findings in a sealed artifact cannot be removed by editing it: the hashes would no longer verify.
 Record again with the right redaction policy, then pack again.
 

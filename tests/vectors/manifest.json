@@ -731,6 +731,30 @@
       }
     },
     {
+      "id": "pack/gzip-crc-damaged",
+      "kind": "pack",
+      "artifact": "pack/gzip-crc-damaged.sage.tar.gz",
+      "rule": "7.1",
+      "expect": "reject",
+      "error_type": "ChainIntegrityError",
+      "exit": 1,
+      "hmac_key": true,
+      "public_key": true,
+      "policy": {
+        "format": "sage.verify.policy.v1",
+        "policy_id": "conformance-strict",
+        "require_sealed": true,
+        "forbid_live_journal": true,
+        "require_witness": true,
+        "require_witness_hmac": true,
+        "require_pack_hmac": true,
+        "require_pack_v2": true,
+        "require_pack_signature": true,
+        "require_blob_inventory": true,
+        "min_span_count": 4
+      }
+    },
+    {
       "id": "pack/policy-min-span-count",
       "kind": "pack",
       "artifact": "pack/policy-min-span-count.sage.tar.gz",

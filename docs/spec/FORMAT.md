@@ -326,6 +326,12 @@ A verifier MUST extract safely and reject the archive if:
 - a member is larger than 256 MiB;
 - the total size is larger than 512 MiB.
 
+A verifier MUST also read the whole gzip stream and check its CRC-32 and length trailer before it
+extracts, and reject a damaged archive as an integrity failure. The integrity checks in
+[section 7.6](#76-verifying-a-pack) cover the extracted members only. The archive bytes themselves
+are not bound: gzip header fields (for example the mtime) and tar metadata can change without
+failing verification. To pin the exact file, compare its SHA-256 with a value from the producer.
+
 ### 7.2 `pack.json`
 
 | Member | Value | Bound by HMAC and signature |

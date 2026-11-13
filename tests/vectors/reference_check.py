@@ -10,6 +10,7 @@ with the stored value. Port this file to check an implementation in another lang
 from __future__ import annotations
 
 import base64
+import gzip
 import hashlib
 import hmac
 import json
@@ -213,6 +214,9 @@ def content_digest(artifact: Path) -> str:
 
 def check_pack(path: Path, key: str, pin: str) -> dict:
     label = path.relative_to(HERE).as_posix()
+    with gzip.open(path, "rb") as stream:
+        while stream.read(1 << 20):
+            pass
     with tempfile.TemporaryDirectory() as tmp, tarfile.open(path, "r:gz") as tar:
         members = tar.getmembers()
         check(f"{label} single top-level dir", {m.name.split("/")[0] for m in members}, {"sage_artifact"})

@@ -93,6 +93,58 @@ def test_key_fingerprint_missing_file_is_setup_exit(tmp_path) -> None:
         capture_output=True, text=True,
     )
     assert proc.returncode == 2
+    err = json.loads(proc.stderr)
+    assert err["error_type"] == "FileNotFoundError"
+    assert "absent.txt" in err["error"]
+
+
+def _build_kit(args: list[str], env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run([sys.executable, "-m", "sage.cli", "handoff", *args],
+                          capture_output=True, text=True, env=env, timeout=120)
+
+
+def test_handoff_build_reads_key_file_and_env_fallback(tmp_path: Path) -> None:
+    bundle = _bundle(tmp_path)
+    blobs = str(tmp_path / "blobs")
+    key_file = tmp_path / "hmac.key"
+    key_file.write_text(HMAC + "\n", encoding="utf-8")
+
+    built = _build_kit([str(bundle), "--out-dir", str(tmp_path / "kit-file"), "--hmac-key-file", str(key_file),
+                        "--blob-root", blobs], _clean_env())
+    assert built.returncode == 0, built.stderr
+    assert HMAC not in built.stdout + built.stderr
+    code, out = _run([sys.executable, "-m", "sage.cli", "handoff", "verify", str(tmp_path / "kit-file"),
+                      "--hmac-key-file", str(key_file)])
+    assert code == 0 and out["ok"] is True
+
+    built = _build_kit([str(bundle), "--out-dir", str(tmp_path / "kit-env"), "--blob-root", blobs],
+                       {**_clean_env(), "SAGE_PACK_KEY": HMAC})
+    assert built.returncode == 0, built.stderr
+    code, _ = _run([sys.executable, "-m", "sage.cli", "handoff", "verify", str(tmp_path / "kit-env"),
+                    "--hmac-key-file", str(key_file)])
+    assert code == 0
+
+
+def test_handoff_build_key_file_errors_are_setup_exits(tmp_path: Path) -> None:
+    bundle = _bundle(tmp_path)
+    empty = tmp_path / "empty.key"
+    empty.write_text("\n", encoding="utf-8")
+    for extra in (["--hmac-key-file", str(empty)], ["--hmac-key-file", str(tmp_path / "absent.key")],
+                  ["--hmac-key-file", str(empty), "--hmac-key", "x"]):
+        result = _build_kit([str(bundle), "--out-dir", str(tmp_path / "kit"), *extra], _clean_env())
+        assert result.returncode == 2, (extra, result.stderr)
+        assert not (tmp_path / "kit").exists()
+
+
+def test_handoff_help_documents_options_and_verify() -> None:
+    proc = subprocess.run([sys.executable, "-m", "sage.cli", "handoff", "--help"],
+                          capture_output=True, text=True, timeout=60)
+    assert proc.returncode == 0
+    text = " ".join(proc.stdout.split())
+    assert "sage handoff verify" in text and "--hmac-key-file" in text and "SAGE_PACK_KEY" in text
+    for phrase in ("HMAC key value", "Verify policy JSON file", "Name recorded in the witness log",
+                   "Key id to record"):
+        assert phrase in text
 
 
 def test_handoff_md_documents_pyz_and_mismatch() -> None:

@@ -20,7 +20,6 @@ export SAGE_SIGN_PUBLIC_KEY="..."   # pinned; required with --require-signature
 sage doctor
 sage verify evidence.sage.tar.gz \
   --policy policies/auditor.json \
-  --hmac-key "$SAGE_PACK_KEY" \
   --witness \
   --require-signature \
   --public-key="$SAGE_SIGN_PUBLIC_KEY" \
@@ -43,7 +42,7 @@ python examples/consultancy_demo.py --scenario tool-error --out demo-runs/run-01
 
 ```bash
 sage handoff incident.journal --out-dir kit --policy policies/auditor.json \
-  --hmac-key "$SAGE_PACK_KEY" --sign --public-key="$SAGE_SIGN_PUBLIC_KEY"
+  --hmac-key-file keys/hmac.key --sign --public-key="$SAGE_SIGN_PUBLIC_KEY"
 ```
 
 - The policy you pass is enforced as given. Missing HMAC key or signature pin is a setup error

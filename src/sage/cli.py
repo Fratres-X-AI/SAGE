@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -12,8 +13,11 @@ from sage.replay import pure_recorded_replay, replay_bundle
 from sage.regression import write_regression_test
 
 
-def _fail(message: str, code: int = 1) -> int:
-    print(json.dumps({"ok": False, "error": message}, indent=2), file=sys.stderr)
+def _fail(message: str, code: int = 1, *, error_type: str | None = None) -> int:
+    payload: dict = {"ok": False, "error": message}
+    if error_type:
+        payload["error_type"] = error_type
+    print(json.dumps(payload, indent=2), file=sys.stderr)
     return code
 
 
@@ -146,11 +150,19 @@ def _cmd_handoff(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
 
+    hmac_key = args.hmac_key or os.environ.get("SAGE_PACK_KEY") or None
+    if args.hmac_key_file:
+        try:
+            hmac_key = Path(args.hmac_key_file).read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            return _fail(f"cannot read --hmac-key-file: {exc}", code=2)
+        if not hmac_key:
+            return _fail(f"--hmac-key-file is empty: {args.hmac_key_file}", code=2)
     try:
         out = create_handoff(
             args.path,
             args.out_dir,
-            hmac_key=args.hmac_key,
+            hmac_key=hmac_key,
             policy=args.policy,
             actor=args.actor,
             key_id=args.key_id,
@@ -249,8 +261,10 @@ def _cmd_key_fingerprint(args: argparse.Namespace) -> int:
     try:
         material = Path(args.file).read_text(encoding="utf-8")
         fingerprint = public_key_fingerprint(material)
-    except (OSError, ValueError) as exc:
-        return _fail(str(exc), 2)
+    except OSError as exc:
+        return _fail(f"cannot read key file {args.file}: {exc.strerror or exc}", 2, error_type=type(exc).__name__)
+    except ValueError as exc:
+        return _fail(f"not an Ed25519 public key: {exc}", 2, error_type="ValueError")
     print(json.dumps({"alg": "ed25519", "fingerprint_sha256": fingerprint, "file": str(args.file)}, indent=2))
     return 0
 
@@ -628,13 +642,25 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_r.set_defaults(func=_cmd_verify_receipt)
 
-    handoff = sub.add_parser("handoff", help="Build offline evidence handoff kit (pack+policy+receipt)")
-    handoff.add_argument("path")
-    handoff.add_argument("--out-dir", required=True)
-    handoff.add_argument("--hmac-key", default=None)
-    handoff.add_argument("--policy", default=None)
-    handoff.add_argument("--actor", default="handoff")
-    handoff.add_argument("--key-id", default=None)
+    handoff = sub.add_parser(
+        "handoff",
+        help="Build offline evidence handoff kit (pack+policy+receipt); `sage handoff verify <kit>` checks one",
+        description="Build an offline evidence handoff kit. To verify a kit, run `sage handoff verify <kit>`.",
+    )
+    handoff.add_argument("path", help="Sealed bundle (.sage.json) or journal directory to hand off")
+    handoff.add_argument("--out-dir", required=True, help="Empty directory to write the kit to")
+    handoff_key = handoff.add_mutually_exclusive_group()
+    handoff_key.add_argument(
+        "--hmac-key-file",
+        default=None,
+        help="File holding the HMAC key (preferred: keeps the key off the command line)",
+    )
+    handoff_key.add_argument(
+        "--hmac-key", default=None, help="HMAC key value (default: the SAGE_PACK_KEY environment variable)"
+    )
+    handoff.add_argument("--policy", default=None, help="Verify policy JSON file for the kit (default: handoff-default)")
+    handoff.add_argument("--actor", default="handoff", help="Name recorded in the witness log and receipt")
+    handoff.add_argument("--key-id", default=None, help="Key id to record with the HMAC attestation")
     handoff.add_argument(
         "--public-key",
         default=None,

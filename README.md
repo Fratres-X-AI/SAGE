@@ -59,6 +59,25 @@ The same commands work in PowerShell (`\` or `/` in paths). Exit `0` means the e
 receipt all verified. On failure, `error_type` names what failed (`SignatureMismatchError`,
 `ReceiptMismatchError`, `PolicyViolationError`, `ChainIntegrityError`).
 
+Before you share a kit, scan its evidence for possible leaks. The scan reports each finding's
+location and rule, never the value. Exit `0` means no findings, `1` means findings to review. It does
+not cover the convenience notes in the kit (`INCIDENT_SUMMARY.md`, `build_record.json`), so read
+those yourself. See [docs/REDACTION.md](docs/REDACTION.md).
+
+```bash
+sage scan demo-runs/run-01/handoff/evidence.sage.tar.gz
+```
+
+To build a kit from your own recording (a sealed `.sage.json` bundle or a journal directory):
+
+```bash
+sage handoff path/to/journal --out-dir handoff-kit --hmac-key-file keys/hmac.key
+```
+
+Without `--hmac-key-file`, the key comes from the `SAGE_PACK_KEY` environment variable. Add `--sign`
+(with `SAGE_SIGN_PRIVATE_KEY` set) and `--policy` for a signed kit. `sage handoff` warns when the
+leak scan finds something. Pass `--fail-on-findings` to refuse instead.
+
 A real recipient has no checkout: they get the kit, the wheel, and the two key files separately, and
 follow `HANDOFF.md`. A recipient who cannot install packages can use the single-file verifier from
 the release, `sage-verify-<version>.pyz`, which needs only Python 3.10 or newer:
@@ -75,7 +94,6 @@ python examples/security_verify_loop.py
 sage verify evidence.sage.tar.gz \
   --policy policies/strict.json \
   --witness \
-  --hmac-key "$SAGE_PACK_KEY" \
   --receipt verify.receipt.json
 ```
 

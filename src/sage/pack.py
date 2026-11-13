@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import hashlib
 import hmac
 import json
@@ -469,6 +470,17 @@ def _materialize_unpacked(
     return journal
 
 
+def _open_pack(pack: Path) -> tarfile.TarFile:
+    """Open a pack for reading after checking its gzip CRC32 and length trailer.
+
+    `tarfile` stops at the tar end marker and never reads the gzip trailer, so a damaged archive
+    could otherwise extract partially. Header fields such as the gzip mtime are not covered.
+    """
+    with gzip.open(pack, "rb") as stream:
+        while stream.read(1 << 20):
+            pass
+    return tarfile.open(pack, "r:gz")
+
 def unpack_artifact(
     pack_path: str | Path,
     out_dir: str | Path,
@@ -499,7 +511,7 @@ def unpack_artifact(
 
     if not quarantine:
         dest.mkdir(parents=True, exist_ok=True)
-        with tarfile.open(pack, "r:gz") as tar:
+        with _open_pack(pack) as tar:
             safe_extract_tar(tar, dest)
         return _materialize_unpacked(
             dest / "sage_artifact",
@@ -519,7 +531,7 @@ def unpack_artifact(
     with tempfile.TemporaryDirectory(prefix="sage-quarantine-") as tmp:
         staging = Path(tmp) / "stage"
         staging.mkdir()
-        with tarfile.open(pack, "r:gz") as tar:
+        with _open_pack(pack) as tar:
             safe_extract_tar(tar, staging)
         # Always materialize blobs inside staging so promote cannot rmtree an
         # external blob_root (e.g. verify()'s TemporaryDirectory /blobs).

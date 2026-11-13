@@ -452,6 +452,10 @@ def build() -> None:
         (packs / "not-gzip.sage.tar.gz").write_bytes(b"this is not a gzip stream\n" * 4)
         vector("pack/not-gzip", "pack", "pack/not-gzip.sage.tar.gz", "11.1 malformed input", "reject",
                "ChainIntegrityError", **pack_opts)
+        raw_pack = (packs / "valid.sage.tar.gz").read_bytes()
+        (packs / "gzip-crc-damaged.sage.tar.gz").write_bytes(raw_pack[:-8] + bytes([raw_pack[-8] ^ 1]) + raw_pack[-7:])
+        vector("pack/gzip-crc-damaged", "pack", "pack/gzip-crc-damaged.sage.tar.gz", "7.1", "reject",
+               "ChainIntegrityError", **pack_opts)
         pvec("policy-min-span-count", "9", None, "PolicyViolationError",
              policy={**STRICT_POLICY, "min_span_count": 99})
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Recipient re-verification of a SAGE handoff kit. Exit 0 ok, 1 integrity/policy/receipt, 2 setup.
 
-The same code runs as ``verify_handoff.py`` inside every kit, as ``sage handoff verify <kit>``,
-and as the single-file verifier ``sage-verify.pyz``.
+The same code runs as verify_handoff.py inside every kit, as `sage handoff verify <kit>`,
+and as the single-file verifier sage-verify-<version>.pyz from the release.
 """
 from __future__ import annotations
 

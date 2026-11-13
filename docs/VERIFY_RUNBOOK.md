@@ -8,11 +8,12 @@ python -c "from sage import SageRecorder; ..."
 
 # Or CLI after export
 sage verify incident.sage.json --skip-blobs   # if no CAS refs
-sage pack incident.sage.json --out ship.sage.tar.gz --hmac-key "$SAGE_PACK_KEY"
+# The HMAC key comes from SAGE_PACK_KEY (keep it out of argv and shell history)
+sage pack incident.sage.json --out ship.sage.tar.gz
 # Optional: also Ed25519-sign (pip install -e '.[sign]')
 # export SAGE_SIGN_PRIVATE_KEY=...
-# sage pack incident.sage.json --out ship.sage.tar.gz --hmac-key "$SAGE_PACK_KEY" --sign
-sage handoff ship.sage.tar.gz --out-dir ./evidence-kit --hmac-key "$SAGE_PACK_KEY"
+# sage pack incident.sage.json --out ship.sage.tar.gz --sign
+sage handoff ship.sage.tar.gz --out-dir ./evidence-kit --hmac-key-file <keys>/hmac.key
 ```
 
 ## Auditor re-verify (offline)
@@ -31,8 +32,7 @@ python verify_handoff.py
 # or, step by step:
 sage verify evidence.sage.tar.gz \
   --policy policies/strict.json \
-  --witness \
-  --hmac-key "$SAGE_PACK_KEY"
+  --witness
 sage verify-receipt verify.receipt.json --verify-key "$SAGE_VERIFY_KEY"
 ```
 
@@ -43,7 +43,6 @@ export SAGE_PACK_KEY=...
 export SAGE_SIGN_PUBLIC_KEY=...   # pin — do not trust pack-embedded TOFU key alone
 sage verify evidence.sage.tar.gz \
   --policy policies/auditor.json \
-  --hmac-key "$SAGE_PACK_KEY" \
   --witness \
   --require-signature \
   --public-key="$SAGE_SIGN_PUBLIC_KEY" \
@@ -57,7 +56,7 @@ See also [`AUDITOR_KIT.md`](AUDITOR_KIT.md) and `python examples/auditor_kit.py`
 Use `policies/strict.json` (HMAC/witness) or `policies/auditor.json` (+ signature pin):
 
 ```bash
-sage verify "$ARTIFACT" --policy policies/strict.json --hmac-key "$SAGE_PACK_KEY" --witness --receipt "receipts/${CI_COMMIT_SHA}.json"
+sage verify "$ARTIFACT" --policy policies/strict.json --witness --receipt "receipts/${CI_COMMIT_SHA}.json"
 ```
 
 ## Do not

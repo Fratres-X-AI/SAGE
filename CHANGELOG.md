@@ -8,7 +8,7 @@ Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fix
 
 - `docs/spec/FORMAT.md` is the normative spec for bundles, journals, packs, witness logs, policies,
   and receipts: encodings, hash inputs, verification order, and exit codes.
-- `tests/vectors/` holds 53 conformance vectors (accept and reject, each tied to a spec section).
+- `tests/vectors/` holds 54 conformance vectors (accept and reject, each tied to a spec section).
   `run_vectors.py` checks an implementation against them. `reference_check.py` recomputes every
   hash, MAC, and signature in the valid vectors from the spec alone, with the standard library.
 - Property tests (Hypothesis) and atheris fuzz harnesses (`fuzz/`, weekly in `fuzz.yml`, a short run
@@ -28,6 +28,13 @@ Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fix
     `SignatureMismatchError` (a subclass, so existing handlers still catch it).
   - Malformed tar, gzip, JSON, receipt, and policy input could escape as raw Python exceptions. They
     are now `ChainIntegrityError` or `ReceiptMismatchError`.
+  - A pack whose gzip CRC-32 or length trailer was damaged still verified, because `tarfile` stops
+    at the tar end marker. Truncation could also show as a misleading `SignatureMismatchError`
+    ("pack missing pack.json"). Packs are now read to the end and the trailer checked first; damage
+    is `ChainIntegrityError`. The archive bytes are still not bound (FORMAT.md section 7.1).
+- `sage handoff` takes `--hmac-key-file` and falls back to `SAGE_PACK_KEY`, so the key can stay out
+  of argv. Its help now documents every option and points to `sage handoff verify`.
+  `sage key fingerprint` errors include `error_type`.
 - On Windows, a process reading a live journal's manifest could make the recorder's manifest update
   fail (`PermissionError` from `os.replace`), which stopped the background writer. Journal, bundle,
   and blob writes now retry the replace for up to 5 seconds while a reader has the file open, and

@@ -44,6 +44,10 @@ This directory is an offline-verifiable incident evidence kit.
 Any other file a producer adds (for example `INCIDENT_SUMMARY.md` or `build_record.json`) is a
 convenience note, not evidence. Only the pack, verified as below, is evidence.
 
+Verification covers the files inside the pack and checks the gzip CRC-32 and length. It does not
+bind the archive bytes (gzip header fields such as the mtime, or tar metadata). To pin the exact
+file you received, compare the SHA-256 of `evidence.sage.tar.gz` with a value from the producer.
+
 ## What the recipient needs (provisioned separately, never inside this kit)
 
 - The SAGE wheel (`sage_incident_bundles-<version>-py3-none-any.whl`) and Python 3.10 or newer.
