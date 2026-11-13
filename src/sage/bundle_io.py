@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 from sage.audit import require_verified
-from sage.blobs import BlobStore, rehydrate_bundle_dict
+from sage.blobs import BlobStore, rehydrate_bundle_dict, resolve_blob_root
 from sage.errors import BlobIntegrityError
 from sage.journal import is_journal_path, journal_root, load_journal, save_journal
 from sage.schema import IncidentBundle
@@ -20,9 +20,7 @@ def _resolve_store(
         return blob_store
     if blob_store is not None:
         return BlobStore(blob_store)
-    meta = data.get("metadata") or {}
-    root = meta.get("blob_store")
-    return BlobStore(root) if root else BlobStore()
+    return BlobStore(resolve_blob_root(data))
 
 
 def rehydrate_bundle(
