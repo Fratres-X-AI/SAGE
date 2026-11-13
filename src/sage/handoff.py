@@ -32,25 +32,49 @@ This directory is an offline-verifiable incident evidence kit.
 
 ## What the recipient needs (provisioned separately, never inside this kit)
 
-- The HMAC verification key, in `SAGE_PACK_KEY`, if `policy.json` requires pack or witness HMAC.
-- The producer's Ed25519 public key, in `SAGE_SIGN_PUBLIC_KEY` or `--public-key`, if `policy.json`
-  sets `require_pack_signature`. Obtain it and its fingerprint through a separate trusted channel.
-  A public key embedded in the pack does not establish the producer's identity by itself.
+- The SAGE wheel (`sage_incident_bundles-<version>-py3-none-any.whl`) and Python 3.10 or newer.
+- The HMAC verification key (for example a file `hmac.key`), if `policy.json` sets
+  `require_pack_hmac` or `require_witness_hmac`.
+- The producer's Ed25519 public key (for example a file `ed25519.public.txt`), if `policy.json`
+  sets `require_pack_signature`. Obtain it and its SHA-256 fingerprint through a separate trusted
+  channel. A public key embedded in the pack does not establish the producer's identity by itself.
 
 HMAC and signatures prove different things: anyone holding the shared HMAC key can produce a valid
 HMAC, while only the holder of the signing private key can produce a valid signature.
 
 ## Verify
 
-Install the SAGE wheel you were given (the core needs no third-party packages):
+1. Create a virtual environment and install the wheel. If `policy.json` sets
+   `require_pack_signature`, install the `[sign]` extra (adds the `cryptography` package);
+   otherwise the plain wheel is enough.
 
-```bash
-python -m pip install sage_incident_bundles-<version>-py3-none-any.whl
-python verify_handoff.py                     # add --public-key=<base64> when signatures are required
-```
+   ```bash
+   python -m venv sage-venv
+   . sage-venv/bin/activate                        # PowerShell: sage-venv\\Scripts\\Activate.ps1
+   python -m pip install "sage_incident_bundles-<version>-py3-none-any.whl[sign]"
+   ```
 
-Exit codes: `0` evidence, policy, and receipt all verified; `1` integrity or policy failure;
-`2` setup problem (SAGE not installed, required key not provided, kit file missing).
+2. Set the HMAC key to the contents of the key file (not its path):
+
+   ```bash
+   export SAGE_PACK_KEY="$(cat hmac.key)"                       # bash
+   $env:SAGE_PACK_KEY = (Get-Content -Raw hmac.key).Trim()      # PowerShell
+   ```
+
+3. From inside this directory, run the helper. Pass the contents of the public key file with the
+   `--public-key=` form (keys can start with `-`):
+
+   ```bash
+   python verify_handoff.py --public-key="$(cat ed25519.public.txt)"                     # bash
+   python verify_handoff.py --public-key="$((Get-Content -Raw ed25519.public.txt).Trim())"  # PowerShell
+   ```
+
+4. Compare `pinned_key_fingerprint` in the output with the fingerprint you received out of band.
+   It is the SHA-256 of the raw 32-byte key (the urlsafe-base64-decoded file contents).
+
+Exit codes: `0` evidence, policy, and receipt all verified; `1` integrity, policy, or receipt
+failure (the evidence or kit does not match); `2` setup problem (SAGE or `cryptography` not
+installed, required key not provided, kit file missing).
 """
 
 
@@ -59,12 +83,23 @@ VERIFY_SCRIPT = '''#!/usr/bin/env python3
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
 import json
 import os
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+
+
+def _fingerprint(pin: str | None) -> str | None:
+    if not pin:
+        return None
+    try:
+        return hashlib.sha256(base64.urlsafe_b64decode(pin + "=" * (-len(pin) % 4))).hexdigest()
+    except ValueError:
+        return None
 
 
 def _out(payload: dict, code: int) -> int:
@@ -109,11 +144,17 @@ def main(argv: list[str] | None = None) -> int:
         return _out({"ok": False, "stage": "setup", "error": "policy requires HMAC: set SAGE_PACK_KEY"}, 2)
     if policy.require_pack_signature and not pin:
         return _out({"ok": False, "stage": "setup", "error": "policy requires a pinned public key: pass --public-key=<base64> or set SAGE_SIGN_PUBLIC_KEY"}, 2)
+    if policy.require_pack_signature:
+        from sage.signing import signing_available
+
+        if not signing_available():
+            return _out({"ok": False, "stage": "setup", "error": "policy requires Ed25519 signatures but the 'cryptography' package is not installed: python -m pip install \\"<wheel file>[sign]\\" (or: python -m pip install cryptography)"}, 2)
+    pin_fp = _fingerprint(pin)
 
     try:
         report = verify_artifact(pack, policy=policy, hmac_key=key, witness_key=key, public_key=pin)
     except (ChainIntegrityError, BlobIntegrityError) as exc:
-        return _out({"ok": False, "stage": "evidence", "error_type": type(exc).__name__, "error": _short(exc)}, 1)
+        return _out({"ok": False, "stage": "evidence", "error_type": type(exc).__name__, "error": _short(exc), "pinned_key_fingerprint": pin_fp}, 1)
     except SageError as exc:
         return _out({"ok": False, "stage": "evidence", "error_type": type(exc).__name__, "error": _short(exc)}, 2)
 
@@ -148,6 +189,7 @@ def main(argv: list[str] | None = None) -> int:
             "receipt_bound": True,
             "receipt_mac_verified": bound["mac_verified"],
             "signature_pinned": bool(report.get("pack_signature_pinned")),
+            "pinned_key_fingerprint": pin_fp,
             "bundle_id": report.get("bundle_id"),
             "bundle_hash": report.get("bundle_hash"),
             "policy_id": fresh_policy.get("policy_id"),

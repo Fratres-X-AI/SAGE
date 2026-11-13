@@ -141,8 +141,9 @@ def _write_keys(keys_dir: Path, *, sign: bool) -> dict[str, str]:
         "- `hmac.key`: shared HMAC verification key. Send to the recipient through a separate channel.\n"
         + (
             "- `ed25519.private.json`: signing private key. Never leaves the producer.\n"
-            "- `ed25519.public.txt`: public key the recipient pins. Confirm its SHA-256 fingerprint "
-            f"`{material.get('public_key_fingerprint', '')}` with the recipient out of band.\n"
+            "- `ed25519.public.txt`: public key the recipient pins. Give the recipient its SHA-256 fingerprint "
+            f"`{material.get('public_key_fingerprint', '')}` out of band; `verify_handoff.py` prints the same value "
+            "as `pinned_key_fingerprint` (SHA-256 of the urlsafe-base64-decoded 32-byte key).\n"
             if sign
             else ""
         ),

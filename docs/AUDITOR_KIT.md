@@ -51,12 +51,20 @@ sage handoff incident.journal --out-dir kit --policy policies/auditor.json \
 - The kit is built in staging and promoted only after verification; an existing kit is not replaced
   unless you pass `--overwrite`.
 
-The recipient installs the SAGE wheel (no checkout, no LangChain needed), then:
+The recipient installs the SAGE wheel (no checkout, no LangChain needed; add `[sign]` when the
+policy requires signatures, which installs `cryptography`), then runs the helper from the kit
+directory. `SAGE_PACK_KEY` holds the key itself, not a path:
 
 ```bash
-export SAGE_PACK_KEY="..."                    # provisioned separately
-python kit/verify_handoff.py --public-key="<pinned base64 key>"
+python -m pip install "sage_incident_bundles-<version>-py3-none-any.whl[sign]"
+cd kit
+export SAGE_PACK_KEY="$(cat hmac.key)"                       # provisioned separately
+python verify_handoff.py --public-key="$(cat ed25519.public.txt)"
 ```
+
+The output includes `pinned_key_fingerprint` (SHA-256 of the urlsafe-base64-decoded key); compare
+it with the fingerprint received out of band. The kit's `HANDOFF.md` also shows PowerShell syntax.
+A signed kit verified without `cryptography` installed exits `2` (setup), not `1`.
 
 `verify_handoff.py` verifies the pack under `policy.json`, then checks that the receipt's MAC is
 valid **and** that its fingerprint, bundle hash, bundle id, and policy digest match the fresh

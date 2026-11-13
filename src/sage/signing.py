@@ -18,7 +18,10 @@ from typing import Any
 
 from sage.errors import ChainIntegrityError
 
-_CRYPTO_HINT = "Ed25519 signing requires: pip install -e '.[sign]' (cryptography)"
+_CRYPTO_HINT = (
+    "Ed25519 signatures require the 'cryptography' package: "
+    "python -m pip install \"sage-incident-bundles[sign]\" (or \"<wheel file>[sign]\", or -e \".[sign]\" in a checkout)"
+)
 
 
 def signing_available() -> bool:
@@ -173,7 +176,8 @@ def verify_signature(
     try:
         key.verify(_b64d(str(signature["sig"])), body)
     except Exception as exc:  # cryptography InvalidSignature
-        raise ChainIntegrityError(f"ed25519 signature verification failed: {exc}") from exc
+        detail = str(exc) or "signature does not match the pinned public key"
+        raise ChainIntegrityError(f"ed25519 signature verification failed: {detail}") from exc
 
 
 def write_keypair(path: str | Path) -> Path:

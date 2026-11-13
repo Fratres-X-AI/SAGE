@@ -99,13 +99,13 @@ def main(argv: list[str] | None = None) -> int:
     wheelhouse = work / "wheelhouse"
     wheelhouse.mkdir(exist_ok=True)
     shutil.copy2(wheel, wheelhouse / wheel.name)
-    requirements = [wheel.name.split("-")[0].replace("_", "-")]
+    requirements = [str(wheelhouse / wheel.name)]
     if signed:
         dl = _run([sys.executable, "-m", "pip", "download", "--only-binary=:all:", "-d", str(wheelhouse), "cryptography>=42"])
         if dl.returncode != 0:
             print(dl.stderr, file=sys.stderr)
             return 2
-        requirements.append("cryptography")
+        requirements = [f"{wheelhouse / wheel.name}[sign]"]
 
     venv = work / "recipient-venv"
     if venv.exists():

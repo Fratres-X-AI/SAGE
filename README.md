@@ -27,21 +27,37 @@ Observability products already exist. The gap is a **backend-neutral forensic pa
 
 SAGE is a **security tool**, not a chat UI, not an RCA leaderboard, and not “AI observability SaaS.”
 
-Current release: **v2.2.0**. Release candidate on this branch: **2.3.0rc1** (not published).
+Latest published release: **v2.2.0** (the badge above). A source checkout of this branch is the
+**2.3.0rc1** release candidate, which is not published; the instructions below use the checkout.
 
 ## Five-minute pilot demonstration
 
 A synthetic client-support workflow recorded through real LangChain (`langchain-core==1.8.0`), with a
-deterministic test model, a tool failure, a sealed and signed pack, and a recipient-verifiable kit:
+deterministic test model, a tool failure, a sealed and signed pack, and a recipient-verifiable kit.
+From the repository root (tested with Python 3.10 and 3.12):
 
 ```bash
-pip install -e ".[langchain,sign]"
+python -m venv .venv
+. .venv/bin/activate                    # PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install -e ".[langchain,sign]"
 python examples/consultancy_demo.py --scenario tool-error --mode sync --out demo-runs/run-01
 ```
 
 `demo-runs/run-01/handoff/` is the shareable kit and `demo-runs/run-01/keys/` stays with the producer.
 `INCIDENT_SUMMARY.md` reports three separate results: workflow outcome, capture completeness, and
 evidence verification. Scenarios: `success`, `tool-error`, `tool-timeout`; modes: `sync`, `async`.
+The output directory must not already exist (or must be empty).
+
+Verify the kit as a recipient would (bash; `handoff/HANDOFF.md` also shows PowerShell):
+
+```bash
+cd demo-runs/run-01/handoff
+export SAGE_PACK_KEY="$(cat ../keys/hmac.key)"
+python verify_handoff.py --public-key="$(cat ../keys/ed25519.public.txt)"   # exit 0; prints pinned_key_fingerprint
+```
+
+A real recipient has no checkout: they get the kit, the wheel, and the two key files separately, and
+follow `HANDOFF.md`.
 
 ## 60-second loop
 
@@ -133,7 +149,7 @@ pip install -e ".[langchain]"      # pinned langchain-core for the callback adap
 pip install -e ".[sign]"           # Ed25519 only
 pip install -e ".[tui]"            # optional inspect TUI
 
-python -m pip install sage_incident_bundles-<version>-py3-none-any.whl   # recipient: verify only
+python -m pip install "sage_incident_bundles-<version>-py3-none-any.whl[sign]"   # recipient; drop [sign] for unsigned kits
 ```
 
 Core recorder / CAS / verify / CLI remain **stdlib-only**.

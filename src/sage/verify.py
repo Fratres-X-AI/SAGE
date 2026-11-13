@@ -71,12 +71,9 @@ def verify_blob_inventory(
 
 
 def _sage_version() -> str:
-    try:
-        from importlib.metadata import version
+    from sage.version import __version__
 
-        return version("sage-incident-bundles")
-    except Exception:
-        return "unknown"
+    return __version__
 
 
 def verify_artifact(

@@ -23,6 +23,12 @@ Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fix
 
 ### Handoff kits
 
+- `HANDOFF.md` gives exact recipient steps: venv, the `[sign]` extra for signed kits, key setup for
+  bash and PowerShell, and the fingerprint check. `verify_handoff.py` prints `pinned_key_fingerprint`.
+- A signed kit verified without `cryptography` now exits `2` (setup) with an install hint that works
+  without a checkout, instead of `1` (integrity failure).
+- Receipts and verify reports record the running SAGE version from `sage.version` instead of
+  installed package metadata (which can be stale in an editable install).
 - `create_handoff()` / `sage handoff` enforce an explicit policy exactly as given; missing key material is a
   setup error instead of a silently weaker policy. New `public_key`, `sign`, and `overwrite` options.
 - Kits are built in a staging directory and promoted only after verification and receipt generation.

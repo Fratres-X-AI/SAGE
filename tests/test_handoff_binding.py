@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -14,6 +15,7 @@ import pytest
 from sage import SageRecorder
 from sage.handoff import HandoffSetupError, create_handoff
 from sage.policy import VerifyPolicy, load_policy
+from sage.version import __version__
 
 ROOT = Path(__file__).resolve().parents[1]
 HMAC = "handoff-test-hmac-key"
@@ -47,6 +49,8 @@ def test_clean_kit_verifies_and_binds_receipt(tmp_path: Path) -> None:
     assert proc.returncode == 0, proc.stderr
     out = json.loads(proc.stdout)
     assert out["evidence_verified"] and out["receipt_bound"] and out["receipt_mac_verified"]
+    receipt = json.loads((kit / "verify.receipt.json").read_text(encoding="utf-8"))
+    assert receipt["sage_version"] == out["sage_version"] == __version__
 
 
 def test_wrong_hmac_key_fails_and_missing_key_is_setup_error(tmp_path: Path) -> None:
@@ -155,13 +159,29 @@ class TestPinnedSignatureHandoff:
         kit, kp = self._signed_kit(tmp_path)
         proc = _helper(kit, f"--public-key={kp['public_key']}", env_extra={"SAGE_PACK_KEY": HMAC})
         assert proc.returncode == 0, proc.stderr
-        assert json.loads(proc.stdout)["signature_pinned"] is True
+        out = json.loads(proc.stdout)
+        assert out["signature_pinned"] is True
+        assert out["pinned_key_fingerprint"] == hashlib.sha256(signing._b64d(kp["public_key"])).hexdigest()
 
     def test_wrong_or_absent_pin_fails(self, tmp_path: Path) -> None:
         kit, _kp = self._signed_kit(tmp_path)
         other = signing.generate_keypair()["public_key"]
-        assert _helper(kit, f"--public-key={other}", env_extra={"SAGE_PACK_KEY": HMAC}).returncode == 1
+        wrong = _helper(kit, f"--public-key={other}", env_extra={"SAGE_PACK_KEY": HMAC})
+        assert wrong.returncode == 1
+        assert json.loads(wrong.stderr)["error"].rstrip().endswith("pinned public key")
         assert _helper(kit, env_extra={"SAGE_PACK_KEY": HMAC}).returncode == 2
+
+    def test_missing_cryptography_is_a_setup_error_with_recipient_hint(self, tmp_path: Path) -> None:
+        kit, kp = self._signed_kit(tmp_path)
+        blocker = tmp_path / "block_crypto"
+        blocker.mkdir()
+        (blocker / "sitecustomize.py").write_text("import sys\nsys.modules['cryptography'] = None\n", encoding="utf-8")
+        proc = _helper(kit, f"--public-key={kp['public_key']}",
+                       env_extra={"SAGE_PACK_KEY": HMAC, "PYTHONPATH": os.pathsep.join([str(blocker), *sys.path])})
+        assert proc.returncode == 2, proc.stderr
+        err = json.loads(proc.stderr)
+        assert err["stage"] == "setup"
+        assert "[sign]" in err["error"] and "-e" not in err["error"]
 
     def test_pin_that_starts_with_dash_is_accepted(self, tmp_path: Path) -> None:
         kp = next(k for k in iter(signing.generate_keypair, None) if k["public_key"].startswith("-"))

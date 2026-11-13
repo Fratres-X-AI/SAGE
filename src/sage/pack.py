@@ -125,12 +125,9 @@ def attest_custody(payload: dict, key: bytes | str) -> str:
 
 
 def _sage_version() -> str:
-    try:
-        from importlib.metadata import version
+    from sage.version import __version__
 
-        return version("sage-incident-bundles")
-    except Exception:
-        return "unknown"
+    return __version__
 
 
 def _redaction_summary(bundle) -> dict:
