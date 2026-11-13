@@ -214,9 +214,17 @@ def content_digest(artifact: Path) -> str:
 def check_pack(path: Path, key: str, pin: str) -> dict:
     label = path.relative_to(HERE).as_posix()
     with tempfile.TemporaryDirectory() as tmp, tarfile.open(path, "r:gz") as tar:
-        names = tar.getnames()
-        check(f"{label} single top-level dir", {n.split("/")[0] for n in names}, {"sage_artifact"})
-        tar.extractall(tmp, filter="data")
+        members = tar.getmembers()
+        check(f"{label} single top-level dir", {m.name.split("/")[0] for m in members}, {"sage_artifact"})
+        for member in members:
+            parts = member.name.split("/")
+            check(f"{label} member {member.name!r} is a plain relative path",
+                  member.isdir() or member.isfile(), True)
+            check(f"{label} member {member.name!r} stays inside", ".." in parts or member.name.startswith("/"), False)
+            if member.isfile() and ".." not in parts:
+                out = Path(tmp).joinpath(*parts)
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_bytes(tar.extractfile(member).read())
         art = Path(tmp) / "sage_artifact"
         meta = json.loads((art / "pack.json").read_text(encoding="utf-8"))
         check(f"{label} format", meta["format"], "sage.pack.v2")
