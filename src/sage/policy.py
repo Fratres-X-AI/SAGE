@@ -49,7 +49,10 @@ def load_policy(source: str | Path | dict[str, Any] | None = None) -> VerifyPoli
     if isinstance(source, dict):
         data = source
     else:
-        data = json.loads(Path(source).read_text(encoding="utf-8"))
+        try:
+            data = json.loads(Path(source).read_text(encoding="utf-8"))
+        except ValueError as exc:
+            raise ChainIntegrityError(f"policy is not valid UTF-8 JSON: {exc}") from exc
     if not isinstance(data, dict):
         raise ChainIntegrityError("policy must be a JSON object")
     known = set(VerifyPolicy.__dataclass_fields__.keys())  # type: ignore[attr-defined]
@@ -76,8 +79,12 @@ def load_policy(source: str | Path | dict[str, Any] | None = None) -> VerifyPoli
     for name in ("min_redaction_count", "min_span_count"):
         if name in data and (not isinstance(data[name], int) or isinstance(data[name], bool)):
             raise ChainIntegrityError(f"policy field {name} must be int")
-    if "allowed_kinds" in data and not isinstance(data["allowed_kinds"], list):
-        raise ChainIntegrityError("policy field allowed_kinds must be list")
+    if "allowed_kinds" in data and not (
+        isinstance(data["allowed_kinds"], list) and all(isinstance(k, str) for k in data["allowed_kinds"])
+    ):
+        raise ChainIntegrityError("policy field allowed_kinds must be a list of strings")
+    if "policy_id" in data and not isinstance(data["policy_id"], str):
+        raise ChainIntegrityError("policy field policy_id must be str")
     kwargs = {k: v for k, v in data.items() if k in known}
     policy = VerifyPolicy(**kwargs)
     if policy.require_witness_hmac and not policy.require_witness:

@@ -91,8 +91,15 @@ def verify_receipt(
     expect_fingerprint: str | None = None,
     allow_unsigned: bool = False,
 ) -> dict[str, Any]:
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except ValueError as exc:
+        raise ReceiptMismatchError(f"receipt is not valid UTF-8 JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ReceiptMismatchError("receipt must be a JSON object")
     att = data.get("attestation") or {}
+    if not isinstance(att, dict) or not isinstance(att.get("key_id"), (str, type(None))):
+        raise ReceiptMismatchError("receipt attestation must be an object with a string key_id")
     body = {k: v for k, v in data.items() if k != "attestation"}
     kid = key_id or att.get("key_id")
     key, _ = resolve_key_material(

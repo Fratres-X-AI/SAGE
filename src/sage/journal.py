@@ -22,7 +22,7 @@ from sage.audit import (
     sha256_digest,
 )
 from sage.blobs import BlobStore, DEFAULT_THRESHOLD, DeferredSyncStore, offload_span
-from sage.errors import ChainIntegrityError, FaultRecoveryError, JournalWriteError
+from sage.errors import ChainIntegrityError, FaultRecoveryError, JournalWriteError, SageError
 from sage.fault import CrashBoundary, RecoveryReport
 from sage.schema import AuditBlock, BundleSource, IncidentBundle, SCHEMA_VERSION, SageSpan, utc_now
 
@@ -830,12 +830,39 @@ def verify_journal(
     """
     try:
         return _verify_journal(directory, allow_live=allow_live)
+    except SageError:
+        raise
     except MALFORMED_INPUT_ERRORS as exc:
         raise ChainIntegrityError(f"malformed journal: {type(exc).__name__}: {exc}") from exc
 
 
+def _first_corrupt_line(path: Path) -> int | None:
+    """1-based number of the first complete line that is not a JSON object.
+
+    A crash can only tear the unterminated last line; a bad line that ends in a newline is
+    corruption. NUL-only lines (what power loss can leave behind) count as torn, not corrupt.
+    """
+    if not path.exists():
+        return None
+    for number, line in enumerate(path.read_bytes().split(b"\n")[:-1], start=1):
+        text = line.strip()
+        if not text.strip(b"\x00"):
+            continue
+        try:
+            obj = json.loads(text.decode("utf-8"))
+        except ValueError:
+            return number
+        if not isinstance(obj, dict):
+            return number
+    return None
+
+
 def _verify_journal(directory: str | Path, *, allow_live: bool) -> dict[str, Any]:
     root = journal_root(directory)
+    for name in (SPANS_JSONL, CHAIN_JSONL):
+        corrupt = _first_corrupt_line(root / name)
+        if corrupt is not None:
+            raise ChainIntegrityError(f"{name} line {corrupt} is corrupt (not a torn tail)")
     if not (root / MANIFEST_NAME).exists():
         recovered = recover_manifest_from_wal(root)
         if recovered is None:

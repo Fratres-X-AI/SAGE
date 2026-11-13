@@ -198,7 +198,7 @@ def verify_signature(
     pinned = resolve_pinned_public_key(public_key=public_key, key_id=key_id, key_ring=key_ring)
     if require_pinned:
         if not pinned:
-            raise ChainIntegrityError(
+            raise SignatureMismatchError(
                 "pinned Ed25519 public key required "
                 "(SAGE_SIGN_PUBLIC_KEY / --public-key / key ring); TOFU refused"
             )

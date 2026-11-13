@@ -40,6 +40,10 @@ Hashes and HMACs prove **artifact integrity under a key/policy**, not honesty of
 | Receipt substituter | Pass off a receipt from a different pack, key, or policy | Receipt binding: bundle hash and id, policy digest, and `expect_fingerprint` are checked against the freshly verified pack |
 | Policy downgrader | Verify under a weaker policy than the one requested | An explicit policy is never weakened to fit missing key material; missing material raises `HandoffSetupError` (exit 2) |
 | Release tamperer | Ship a modified wheel as an official release | Reproducible builds, `SHA256SUMS.json`, Sigstore signatures, and SLSA provenance; check with `scripts/verify_release.py` |
+| Attestation stripper | Delete `pack.json` (MAC and signature) so a pack verifies as an unattested journal | A pack without `pack.json` is refused when a key or signature is required (`SignatureMismatchError` if a signature is required); vector `pack/pack-json-missing` |
+| Unbound-field forger | Add or change fields the hashes do not cover (unknown span members, a non-normal span) | Stored spans and bundles must equal their normal form byte for byte (`docs/spec/FORMAT.md` section 3.3) |
+| Anchor splicer | Pair a valid `pack.json` with another journal, or edit its anchors | `bundle_hash`, `merkle_root`, and `witness_tip` in `pack.json` are checked against the journal and witness log; `redaction_count` is read from the hash-bound bundle only |
+| Malformed-input crasher | Crash or hang the verifier with hostile bytes | Every rejection is a typed `SageError` (exit 1 or 2); property tests, 53 conformance vectors, and scheduled atheris fuzzing (`fuzz/`) hold that contract |
 
 ## Explicit non-goals (what SAGE does **not** prove)
 

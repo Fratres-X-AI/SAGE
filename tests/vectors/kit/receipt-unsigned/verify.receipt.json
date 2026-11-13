@@ -1,0 +1,16 @@
+{
+  "artifact_fingerprint": "424ab127c0f4ad1070f1e66341b556eb1ef47089d80d8f36448f9c6a52530ef7",
+  "blob_merkle": "7f7257a745c07de672fe5994c20ede1fd96166c28f04d7b9bd0253925a689561",
+  "bundle_hash": "15460d905a0bbed7b2e012ea0a52bb0ac4bbd4188d35333d41b71b817ec13225",
+  "bundle_id": "conformance",
+  "format": "sage.verify.receipt.v1",
+  "kind": "pack",
+  "ok": true,
+  "pack_format": "sage.pack.v2",
+  "path_basename": "valid.sage.tar.gz",
+  "policy_digest": "73b7abc5be3bae9914b3a2827553fd8e365af4abbbe34660a221167815b40ccc",
+  "policy_id": "conformance-strict",
+  "sage_version": "2.3.0rc1",
+  "verified_at": "2026-01-01T00:00:00.021000Z",
+  "witness_tip": "1ca23c805704f5a00575ab41209ab2943d953d9260566e638af5175db5ced9bd"
+}

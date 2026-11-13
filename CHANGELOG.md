@@ -4,6 +4,31 @@
 
 Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fixtures/compat_v2_2_0`).
 
+### Assurance
+
+- `docs/spec/FORMAT.md` is the normative spec for bundles, journals, packs, witness logs, policies,
+  and receipts: encodings, hash inputs, verification order, and exit codes.
+- `tests/vectors/` holds 53 conformance vectors (accept and reject, each tied to a spec section).
+  `run_vectors.py` checks an implementation against them. `reference_check.py` recomputes every
+  hash, MAC, and signature in the valid vectors from the spec alone, with the standard library.
+- Property tests (Hypothesis) and atheris fuzz harnesses (`fuzz/`, weekly in `fuzz.yml`, a short run
+  on every PR) check that hostile input is rejected with a typed error. They found these
+  verifier gaps, now fixed:
+  - Deleting `pack.json` let a pack pass as an unattested journal when no policy was given. It is
+    now refused when a key or signature is required.
+  - Span members the hashes do not cover were accepted. Stored spans and bundles must now be in
+    normal form.
+  - `bundle_hash`, `merkle_root`, and `witness_tip` in `pack.json` were not checked against the
+    journal. They are now.
+  - Policy `min_redaction_count` read an unauthenticated count from `pack.json`. It now reads the
+    hash-bound bundle.
+  - A corrupt complete line in a journal was reported as a recoverable torn tail (exit 2). Only the
+    unterminated last line counts as torn now; other bad lines exit 1.
+  - A required pin with no pinned key raised `ChainIntegrityError`; it is now
+    `SignatureMismatchError` (a subclass, so existing handlers still catch it).
+  - Malformed tar, gzip, JSON, receipt, and policy input could escape as raw Python exceptions. They
+    are now `ChainIntegrityError` or `ReceiptMismatchError`.
+
 
 ### Recipient experience
 

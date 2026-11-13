@@ -136,6 +136,26 @@ jobs:
       - name: Installed-wheel recipient verify (offline)
         run: python scripts/recipient_check.py --dist dist --work "$RUNNER_TEMP/recipient"
 
+  fuzz-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]" "atheris==3.0.0"
+      - name: Short atheris run per harness (the long run is fuzz.yml)
+        run: |
+          python fuzz/write_corpus.py
+          for harness in fuzz_pack fuzz_journal fuzz_policy fuzz_receipt; do
+            python "fuzz/${harness}.py" "fuzz/corpus/${harness}" -runs=3000 -timeout=20
+          done
+      - name: Conformance vectors (implementation and spec-only reference)
+        run: |
+          python tests/vectors/run_vectors.py
+          python -I tests/vectors/reference_check.py
+
   reproducible-build:
     runs-on: ubuntu-latest
     steps:

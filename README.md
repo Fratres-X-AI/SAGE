@@ -223,6 +223,7 @@ CI: Ubuntu · Windows · macOS × Python 3.10 / 3.12.
 | [VERIFY_RUNBOOK.md](docs/VERIFY_RUNBOOK.md) | Record → ship → auditor re-verify |
 | [AUDITOR_KIT.md](docs/AUDITOR_KIT.md) | Pinned-signature verify posture |
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Assets, adversaries, non-goals |
+| [FORMAT.md](docs/spec/FORMAT.md) | Normative artifact spec; conformance vectors in `tests/vectors/` |
 | [SECURITY.md](SECURITY.md) | Supported versions / reporting |
 | [RELEASE.md](RELEASE.md) | Tag / publish checklist |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | PR bar for a security tool |
