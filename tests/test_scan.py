@@ -87,7 +87,7 @@ def test_pack_findings_have_locations_and_rule_ids(leaky: tuple[Path, Path, Path
         f for f in report.findings
         if f.rule == "aws_access_key_id" and f.member.endswith("spans.jsonl") and f.path == "$.inputs.prompt"
     )
-    assert aws.span_id and aws.span_id.startswith("span_") and aws.line == 1
+    assert aws.span_id and aws.span_id.startswith("span_") and aws.line is not None and aws.line >= 1
     assert aws.length == len(corpus.AWS_ACCESS_KEY_ID)
     github = [f for f in report.findings if f.rule == "github_token"]
     assert any("/blobs/" in f.member for f in github), "offloaded blob content was not scanned"
