@@ -78,7 +78,8 @@ def default_blob_root() -> Path:
 
 # bundle_id -> blob root used when the bundle was sealed in this process. Kept out of the bundle
 # so sealed evidence never carries the producer's absolute paths.
-_SEALED_BLOB_ROOTS: dict[str, Path] = {}
+_SEALED_BLOB_ROOTS: dict[str, list[Path]] = {}  # newest last; temp roots vanish
+_SEALED_ROOTS_PER_BUNDLE = 8
 _SEALED_BLOB_ROOTS_MAX = 4096
 
 
@@ -99,8 +100,9 @@ def remember_blob_root(bundle_id: str | None, root: str | Path) -> None:
     if not bundle_id:
         return
     with _store_locks_guard:
-        _SEALED_BLOB_ROOTS.pop(bundle_id, None)
-        _SEALED_BLOB_ROOTS[bundle_id] = Path(root)
+        roots = [r for r in _SEALED_BLOB_ROOTS.pop(bundle_id, []) if r != Path(root)]
+        roots.append(Path(root))
+        _SEALED_BLOB_ROOTS[bundle_id] = roots[-_SEALED_ROOTS_PER_BUNDLE:]
         while len(_SEALED_BLOB_ROOTS) > _SEALED_BLOB_ROOTS_MAX:
             _SEALED_BLOB_ROOTS.pop(next(iter(_SEALED_BLOB_ROOTS)))
 
@@ -115,9 +117,10 @@ def resolve_blob_root(data: dict[str, Any]) -> Path | None:
     bundle_id = data.get("bundle_id")
     if bundle_id:
         with _store_locks_guard:
-            remembered = _SEALED_BLOB_ROOTS.get(str(bundle_id))
-        if remembered is not None and remembered.is_dir():
-            return remembered
+            remembered = list(_SEALED_BLOB_ROOTS.get(str(bundle_id), ()))
+        for root in reversed(remembered):
+            if root.is_dir():
+                return root
     hint = (data.get("metadata") or {}).get("blob_store")
     return Path(hint) if hint else None
 

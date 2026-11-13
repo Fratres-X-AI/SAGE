@@ -134,3 +134,14 @@ def test_unpack_does_not_record_the_receivers_absolute_path(tmp_path: Path, monk
     assert _absolute_strings(manifest) == []
     repacked = pack_artifact(out, tmp_path / "again.sage.tar.gz", hmac_key=b"k" * 32)
     assert verify_artifact(repacked, hmac_key=b"k" * 32)["ok"]
+
+
+def test_verifying_a_pack_does_not_hide_the_producers_blob_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    work = tmp_path / "work"
+    work.mkdir()
+    monkeypatch.chdir(work)
+    bundle, _journal = _record(tmp_path, tmp_path / "outside-blobs", name="reverify")
+    first = pack_artifact(bundle, tmp_path / "first.sage.tar.gz", hmac_key=b"k" * 32)
+    assert verify_artifact(first, hmac_key=b"k" * 32)["ok"]  # unpacks into a temporary store
+    second = pack_artifact(bundle, tmp_path / "second.sage.tar.gz", hmac_key=b"k" * 32)
+    assert verify_artifact(second, hmac_key=b"k" * 32)["ok"]
