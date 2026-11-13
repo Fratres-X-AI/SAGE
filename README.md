@@ -54,12 +54,14 @@ Verify the kit as a recipient would. In the demo the keys are in `../keys` relat
 cd demo-runs/run-01/handoff
 export SAGE_PACK_KEY="$(cat ../keys/hmac.key)"
 python verify_handoff.py --public-key="$(cat ../keys/ed25519.public.txt)"   # exit 0; prints pinned_key_fingerprint
+unset SAGE_PACK_KEY; cd ../../..                                           # back to the repo root
 ```
 
 ```powershell
 cd demo-runs\run-01\handoff
 $env:SAGE_PACK_KEY = (Get-Content -Raw ..\keys\hmac.key).Trim()
 python verify_handoff.py --public-key="$((Get-Content -Raw ..\keys\ed25519.public.txt).Trim())"
+Remove-Item Env:SAGE_PACK_KEY; cd ..\..\..
 ```
 
 A real recipient has no checkout: they get the kit, the wheel, and the two key files separately, and

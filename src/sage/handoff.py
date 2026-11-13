@@ -54,11 +54,11 @@ HMAC, while only the holder of the signing private key can produce a valid signa
    ```bash
    python -m venv sage-venv                        # Windows: py -3.12 -m venv sage-venv
    . sage-venv/bin/activate                        # PowerShell: sage-venv\\Scripts\\Activate.ps1
-   python -m pip install "sage_incident_bundles-<version>-py3-none-any.whl[sign]"
+   python -m pip install "<path to>/sage_incident_bundles-<version>-py3-none-any.whl[sign]"
    ```
 
-   In the commands below, `<keys>` is wherever you saved the key files you received separately
-   (they are not in this directory). Run the commands from inside this directory.
+   In steps 2 to 4, `<keys>` is wherever you saved the key files you received separately
+   (they are not in this directory). Run steps 2 to 4 from inside this directory.
 
 2. Set the HMAC key to the contents of the key file (not its path):
 
@@ -77,11 +77,13 @@ HMAC, while only the holder of the signing private key can produce a valid signa
 
 4. Compare `pinned_key_fingerprint` in the output with the fingerprint you received out of band.
    It is the SHA-256 of the raw 32-byte key (the urlsafe-base64-decoded file contents). To compute
-   it independently of the helper:
+   it independently of the helper (same command in bash and PowerShell):
 
    ```bash
    python -c "import base64,hashlib,sys; k=open(sys.argv[1]).read().strip(); print(hashlib.sha256(base64.urlsafe_b64decode(k + '=' * (-len(k) % 4))).hexdigest())" <keys>/ed25519.public.txt
    ```
+
+5. Clear the key from your shell: `unset SAGE_PACK_KEY` (PowerShell: `Remove-Item Env:SAGE_PACK_KEY`).
 
 Exit codes: `0` evidence, policy, and receipt all verified; `1` integrity, policy, or receipt
 failure (the evidence or kit does not match); `2` setup problem (SAGE or `cryptography` not
