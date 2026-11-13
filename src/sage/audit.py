@@ -25,7 +25,8 @@ DEFAULT_VALUE_PATTERNS = (
     r"Bearer\s+[A-Za-z0-9_\-\.]+",
 )
 
-# Usage / metric keys that contain "token" but are not secrets.
+# Usage / metric keys that contain "token" but are not secrets. Exempt only while their value is a
+# number or a container of numbers (see `_is_usage_count`); a string under any of them is redacted.
 SAFE_KEY_ALLOWLIST = frozenset(
     {
         "input_tokens",
@@ -37,6 +38,13 @@ SAFE_KEY_ALLOWLIST = frozenset(
         "token_count",
     }
 )
+
+# Key words that mark a credential even when the key also looks like a usage counter.
+_CREDENTIAL_KEY_WORDS = (
+    "access", "refresh", "auth", "bearer", "session", "csrf", "xsrf", "oauth", "jwt", "api_key",
+    "apikey", "secret", "private", "password", "credential", "cookie", "idtoken", "id_token",
+)
+_KEY_PART_RE = re.compile(r"[^a-z0-9]+")
 
 
 def canonical_json(value: Any) -> str:
@@ -54,11 +62,74 @@ def _compiled_pattern(pattern: str) -> "re.Pattern[str]":
 
 
 @lru_cache(maxsize=8192)
-def _is_sensitive_key(key_l: str, key_fragments: tuple[str, ...]) -> bool:
-    for fragment in key_fragments:
-        if fragment in key_l:
-            return key_l not in SAFE_KEY_ALLOWLIST and not key_l.endswith("_tokens")
+def _sensitive_key_kind(key_l: str, key_fragments: tuple[str, ...]) -> int:
+    """0: not sensitive. 1: sensitive. 2: sensitive unless the value is a usage count."""
+    matched = [fragment for fragment in key_fragments if fragment in key_l]
+    if not matched:
+        return 0
+    if all(fragment == "token" for fragment in matched) and _is_usage_count_key(key_l):
+        return 2
+    return 1
+
+
+def _is_usage_count_key(key_l: str) -> bool:
+    if any(word in key_l for word in _CREDENTIAL_KEY_WORDS):
+        return False
+    parts = [part for part in _KEY_PART_RE.split(key_l) if part]
+    if "id" in parts or key_l.startswith("x-"):
+        return False
+    if key_l in SAFE_KEY_ALLOWLIST:
+        return True
+    for index, part in enumerate(parts):
+        if part.endswith(("tokens", "tokencount", "tokencounts")):
+            return True
+        if part == "token" and index + 1 < len(parts) and parts[index + 1] in ("count", "counts", "usage"):
+            return True
     return False
+
+
+def _is_usage_count(value: Any, depth: int = 0) -> bool:
+    """A number, None, or a dict/list holding only those (token counts and usage details)."""
+    kind = type(value)
+    if value is None or kind is int or kind is float:
+        return True
+    if depth >= 8:
+        return False
+    if isinstance(value, Mapping):
+        return all(_is_usage_count(child, depth + 1) for child in value.values())
+    if isinstance(value, list):
+        return all(_is_usage_count(child, depth + 1) for child in value)
+    return False
+
+
+def _is_sensitive_key(key_l: str, key_fragments: tuple[str, ...], value: Any = None) -> bool:
+    kind = _sensitive_key_kind(key_l, key_fragments)
+    if kind == 2:
+        return not _is_usage_count(value)
+    return kind == 1
+
+
+@lru_cache(maxsize=512)
+def _split_patterns(value_patterns: tuple[str, ...]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    from sage.detectors import split_detector_patterns
+
+    return split_detector_patterns(value_patterns)
+
+
+def _path_key(path: str) -> str:
+    """The nearest non-index segment of a dotted path ("spans.0.inputs.ids.3" -> "ids")."""
+    for part in reversed(path.split(".")):
+        if part and not part.isdigit() and part != "$":
+            return part
+    return ""
+
+
+def _detect_int(value: int, detectors: tuple[str, ...]) -> bool:
+    if "card_number" not in detectors or value < 10**12:
+        return False
+    from sage.detectors import is_card_number
+
+    return is_card_number(str(value))
 
 
 def _scrub_string(
@@ -67,14 +138,25 @@ def _scrub_string(
     path: str,
     redacted_paths: list[dict[str, str]] | None,
     value_patterns: tuple[str, ...],
+    key: str | None = None,
 ) -> str:
+    if type(value_patterns) is not tuple:
+        value_patterns = tuple(value_patterns)
+    regexes, detectors = _split_patterns(value_patterns)
     scrubbed = text
-    for pattern in value_patterns:
+    for pattern in regexes:
         regex = _compiled_pattern(pattern)
         if regex.search(scrubbed):
             scrubbed, count = regex.subn("[REDACTED]", scrubbed)
             if count and redacted_paths is not None:
                 redacted_paths.append({"path": path, "reason": f"value_pattern:{pattern}"})
+    if detectors:
+        from sage.detectors import apply_detectors
+
+        scrubbed, fired = apply_detectors(scrubbed, detectors, key=_path_key(path) if key is None else key)
+        if redacted_paths is not None:
+            for rule in fired:
+                redacted_paths.append({"path": path, "reason": f"detector:{rule}"})
     return scrubbed
 
 
@@ -82,6 +164,8 @@ def _redact_untracked(
     value: Any,
     key_fragments: tuple[str, ...],
     compiled: tuple["re.Pattern[str]", ...],
+    detectors: tuple[str, ...] = (),
+    key: str = "",
 ) -> Any:
     """`redact_value` without path bookkeeping. Same output; used when no redaction log is kept."""
     kind = type(value)
@@ -89,24 +173,34 @@ def _redact_untracked(
         for regex in compiled:
             if regex.search(value):
                 value = regex.sub("[REDACTED]", value)
+        if detectors:
+            from sage.detectors import apply_detectors
+
+            value = apply_detectors(value, detectors, key=key)[0]
         return value
+    if kind is int and detectors and _detect_int(value, detectors):
+        return "[REDACTED]"
     if value is None or kind is int or kind is float or kind is bool:
         return value
     if kind is dict or isinstance(value, Mapping):
         redacted: dict[str, Any] = {}
         for key, child in value.items():
-            key_l = key.lower() if type(key) is str else str(key).lower()
-            if _is_sensitive_key(key_l, key_fragments):
+            key_s = key if type(key) is str else str(key)
+            if _is_sensitive_key(key_s.lower(), key_fragments, child):
                 redacted[key] = "[REDACTED]"
             else:
-                redacted[key] = _redact_untracked(child, key_fragments, compiled)
+                redacted[key] = _redact_untracked(child, key_fragments, compiled, detectors, key_s)
         return redacted
     if isinstance(value, list):
-        return [_redact_untracked(child, key_fragments, compiled) for child in value]
+        return [_redact_untracked(child, key_fragments, compiled, detectors, key) for child in value]
     if isinstance(value, str):
         for regex in compiled:
             if regex.search(value):
                 value = regex.sub("[REDACTED]", value)
+        if detectors:
+            from sage.detectors import apply_detectors
+
+            value = apply_detectors(value, detectors, key=key)[0]
         return value
     return value
 
@@ -118,17 +212,22 @@ def redact_value(
     redacted_paths: list[dict[str, str]] | None = None,
     key_fragments: tuple[str, ...] = DEFAULT_REDACTION_KEYS,
     value_patterns: tuple[str, ...] = DEFAULT_VALUE_PATTERNS,
+    _key: str | None = None,
 ) -> Any:
     if type(key_fragments) is not tuple:
         key_fragments = tuple(key_fragments)
+    if type(value_patterns) is not tuple:
+        value_patterns = tuple(value_patterns)
+    key = _path_key(path) if _key is None else _key
     if redacted_paths is None:
-        compiled = tuple(_compiled_pattern(pattern) for pattern in value_patterns)
-        return _redact_untracked(value, key_fragments, compiled)
+        regexes, detectors = _split_patterns(value_patterns)
+        compiled = tuple(_compiled_pattern(pattern) for pattern in regexes)
+        return _redact_untracked(value, key_fragments, compiled, detectors, key)
     if isinstance(value, Mapping):
         redacted: dict[str, Any] = {}
         for key, child in value.items():
             child_path = f"{path}.{key}" if path else str(key)
-            if _is_sensitive_key(str(key).lower(), key_fragments):
+            if _is_sensitive_key(str(key).lower(), key_fragments, child):
                 redacted[key] = "[REDACTED]"
                 redacted_paths.append({"path": child_path, "reason": "sensitive_key"})
             else:
@@ -138,6 +237,7 @@ def redact_value(
                     redacted_paths=redacted_paths,
                     key_fragments=key_fragments,
                     value_patterns=value_patterns,
+                    _key=str(key),
                 )
         return redacted
     if isinstance(value, list):
@@ -148,6 +248,7 @@ def redact_value(
                 redacted_paths=redacted_paths,
                 key_fragments=key_fragments,
                 value_patterns=value_patterns,
+                _key=key,
             )
             for index, child in enumerate(value)
         ]
@@ -157,7 +258,11 @@ def redact_value(
             path=path or "$",
             redacted_paths=redacted_paths,
             value_patterns=value_patterns,
+            key=key,
         )
+    if type(value) is int and _detect_int(value, _split_patterns(value_patterns)[1]):
+        redacted_paths.append({"path": path or "$", "reason": "detector:card_number"})
+        return "[REDACTED]"
     return value
 
 
@@ -170,6 +275,12 @@ def resolve_redaction_rules(
     policy = policy or {}
     fragments = key_fragments or tuple(policy.get("key_fragments") or DEFAULT_REDACTION_KEYS)
     patterns = value_patterns or tuple(policy.get("value_patterns") or DEFAULT_VALUE_PATTERNS)
+    if policy.get("detectors"):
+        # Opt-in detectors ride along in the pattern tuple as "detector:<id>" entries.
+        from sage.detectors import DETECTOR_PREFIX, resolve_detector_ids
+
+        extra = [f"{DETECTOR_PREFIX}{d}" for d in resolve_detector_ids(policy["detectors"])]
+        patterns = (*patterns, *(p for p in extra if p not in patterns))
     return fragments, patterns
 
 
@@ -257,12 +368,15 @@ def redact_bundle(
             redacted_paths=redactions,
         )
     clone.redactions = [*clone.redactions, *redactions]
+    regexes, detectors = _split_patterns(tuple(patterns))
     clone.redaction_policy = {
         **clone.redaction_policy,
         "key_fragments": list(fragments),
-        "value_patterns": list(patterns),
+        "value_patterns": list(regexes),
         "applied": True,
     }
+    if detectors:
+        clone.redaction_policy["detectors"] = list(detectors)
     return clone
 
 
