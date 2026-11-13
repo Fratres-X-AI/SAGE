@@ -58,7 +58,8 @@ OTLP import behavior to know:
   replaced by `[REDACTED]` at the seal, because the default redaction treats any key containing
   `token` as sensitive.
 - An `exception` event becomes the span error (type, message, stack with directory names cut).
-- Not supported: compressed exports (gzip/zstd files), OTLP logs and metrics, span links. Duplicate span
+- Not supported: compressed exports (gzip/zstd files), OTLP logs and metrics, span links, resource
+  attributes such as `service.name` (the instrumentation scope is kept per span). Duplicate span
   ids keep the first copy.
 
 OpenAI Agents behavior to know:
