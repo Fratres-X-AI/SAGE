@@ -1,19 +1,31 @@
 from __future__ import annotations
 
+import gzip
 import json
+import tarfile
 import tempfile
+import zlib
 from pathlib import Path
 from typing import Any, Literal
 
 from sage.blobs import BlobStore
 from sage.bundle_io import load_bundle
 from sage.errors import BlobIntegrityError, ChainIntegrityError, FaultRecoveryError
-from sage.journal import is_journal_path, journal_root, verify_journal
+from sage.journal import MALFORMED_INPUT_ERRORS, is_journal_path, journal_root, verify_journal
 from sage.merkle import merkle_root
 from sage.pack import collect_bundle_blob_digests, unpack_artifact
 from sage.policy import VerifyPolicy, apply_policy, load_policy
 
 ArtifactKind = Literal["bundle", "journal", "pack"]
+
+MALFORMED_ARTIFACT_ERRORS: tuple[type[BaseException], ...] = (
+    *MALFORMED_INPUT_ERRORS,
+    OverflowError,  # a corrupted tar header timestamp
+    tarfile.TarError,
+    zlib.error,
+    EOFError,
+    gzip.BadGzipFile,
+)
 
 
 def detect_artifact_kind(path: str | Path) -> ArtifactKind:
@@ -161,9 +173,7 @@ def verify_artifact(
                     or bundle.audit.bundle_hash
                 )
                 report["local_bundle_hash"] = bundle.audit.bundle_hash
-                report["redaction_count"] = int(
-                    (pack_meta.get("redaction_summary") or {}).get("redaction_count") or 0
-                )
+                report["redaction_count"] = len(bundle.redactions or [])
                 if check_witness:
                     from sage.witness import verify_witness_log
 
@@ -250,3 +260,8 @@ def verify_artifact(
         report["error"] = str(exc)
         report["recoverable"] = False
         raise
+    except MALFORMED_ARTIFACT_ERRORS as exc:
+        report["ok"] = False
+        report["error"] = f"malformed artifact: {type(exc).__name__}: {exc}"
+        report["recoverable"] = False
+        raise ChainIntegrityError(report["error"]) from exc

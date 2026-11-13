@@ -17,6 +17,7 @@ from sage.audit import (
     compute_bundle_hash,
     order_spans,
     redact_value,
+    require_normal_form,
     require_verified,
     sha256_digest,
 )
@@ -778,6 +779,7 @@ def verify_live_chain_prefix(
     prev = ZERO_HASH
     for index, (raw, link) in enumerate(zip(spans, chain)):
         span = SageSpan.from_dict(raw)
+        require_normal_form(raw, span.to_dict(), f"live span at index={index}")
         content = span_content_hash(span)
         content_by_id[span.span_id] = content
         expected = make_chain_link(
@@ -808,12 +810,31 @@ def verify_live_chain_prefix(
     return prev if chain else ZERO_HASH
 
 
+MALFORMED_INPUT_ERRORS: tuple[type[BaseException], ...] = (
+    ValueError,  # includes json.JSONDecodeError and UnicodeDecodeError
+    KeyError,
+    TypeError,
+    AttributeError,
+    IndexError,
+)
+
+
 def verify_journal(
     directory: str | Path,
     *,
     allow_live: bool = True,
 ) -> dict[str, Any]:
-    """Fail-closed journal verification for CI / `sage verify-journal`."""
+    """Fail-closed journal verification for CI / `sage verify-journal`.
+
+    Every rejection is a `SageError`: malformed content raises `ChainIntegrityError`.
+    """
+    try:
+        return _verify_journal(directory, allow_live=allow_live)
+    except MALFORMED_INPUT_ERRORS as exc:
+        raise ChainIntegrityError(f"malformed journal: {type(exc).__name__}: {exc}") from exc
+
+
+def _verify_journal(directory: str | Path, *, allow_live: bool) -> dict[str, Any]:
     root = journal_root(directory)
     if not (root / MANIFEST_NAME).exists():
         recovered = recover_manifest_from_wal(root)
@@ -938,10 +959,12 @@ def load_journal(
             bundle_hash=str((manifest.get("audit") or {}).get("bundle_hash") or ""),
         ),
     )
-    for raw in span_dicts:
+    for index, raw in enumerate(span_dicts):
         span = SageSpan.from_dict(raw, default_trace_id=bundle.bundle_id)
         if not span.trace_id:
             span.trace_id = bundle.bundle_id
+        if verify:
+            require_normal_form(raw, span.to_dict(), f"span at index={index}")
         bundle.spans.append(span)
     if verify:
         if manifest.get("manifest_seal"):

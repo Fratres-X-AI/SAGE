@@ -39,7 +39,7 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "build>=1.0", "cryptography>=42"]
+dev = ["pytest>=8.0", "build>=1.0", "cryptography>=42", "hypothesis==6.170.15"]
 sign = ["cryptography>=42"]
 # Exact version exercised by tests/integration_langchain and the consultancy demo.
 langchain = ["langchain-core==1.8.0"]
@@ -76,7 +76,7 @@ packages = ["src/sage"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-norecursedirs = ["generated", "artifacts", "pod_export"]
+norecursedirs = ["generated", "artifacts", "pod_export", ".hypothesis", "fuzz"]
 addopts = "--ignore=tests/generated --ignore=tests/test_attribution.py"
 markers = [
   "slow: long-running nuclear / stress tests",

@@ -144,3 +144,40 @@ def test_TM09_tofu_signer_refused_without_pin(tmp_path: Path, monkeypatch: pytes
         pack, hmac_key="k", require_signature=True, public_key=kp["public_key"]
     )
     assert report["ok"] and report.get("pack_signature_pinned")
+
+
+def _strip_member(pack: Path, out: Path, suffix: str) -> Path:
+    import tarfile
+
+    with tarfile.open(pack, "r:gz") as src, tarfile.open(out, "w:gz") as dst:
+        for member in src.getmembers():
+            if member.name.endswith(suffix):
+                continue
+            dst.addfile(member, src.extractfile(member) if member.isfile() else None)
+    return out
+
+
+def test_TM10_attestation_stripper_missing_pack_json_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Adversary: attestation stripper deletes pack.json so no MAC or signature is checked."""
+    from sage.errors import SignatureMismatchError
+    from sage.signing import generate_keypair, signing_available
+
+    with SageRecorder("tm10", register_trace=False) as rec:
+        with rec.tool_call("t"):
+            pass
+        path = rec.export(tmp_path / "i.sage.json")
+    pack = pack_artifact(path, tmp_path / "p.sage.tar.gz", hmac_key="k")
+    stripped = _strip_member(pack, tmp_path / "s.sage.tar.gz", "/pack.json")
+    with pytest.raises(ChainIntegrityError, match="pack.json"):
+        verify_artifact(stripped, hmac_key="k")
+    with pytest.raises(ChainIntegrityError, match="pack.json"):
+        verify_artifact(stripped)
+
+    if not signing_available():
+        return
+    kp = generate_keypair()
+    monkeypatch.setenv("SAGE_SIGN_PRIVATE_KEY", kp["private_key"])
+    signed = pack_artifact(path, tmp_path / "signed.sage.tar.gz", hmac_key="k", sign=True)
+    stripped = _strip_member(signed, tmp_path / "s2.sage.tar.gz", "/pack.json")
+    with pytest.raises(SignatureMismatchError):
+        verify_artifact(stripped, hmac_key="k", require_signature=True, public_key=kp["public_key"])

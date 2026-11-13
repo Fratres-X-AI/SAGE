@@ -5,11 +5,11 @@ import os
 import tempfile
 from pathlib import Path
 
-from sage.audit import require_verified
+from sage.audit import require_normal_form, require_verified
 from sage.blobs import BlobStore, rehydrate_bundle_dict
 from sage.errors import BlobIntegrityError
 from sage.journal import is_journal_path, journal_root, load_journal, save_journal
-from sage.schema import IncidentBundle
+from sage.schema import SCHEMA_VERSION, IncidentBundle
 
 
 def _resolve_store(
@@ -64,6 +64,8 @@ def load_bundle(
     raw = json.loads(p.read_text(encoding="utf-8"))
     compact = IncidentBundle.from_dict(raw)
     if verify:
+        if isinstance(raw, dict) and raw.get("schema_version") == SCHEMA_VERSION:
+            require_normal_form(raw, compact.to_dict(), "bundle")
         require_verified(compact)
     if not rehydrate:
         return compact

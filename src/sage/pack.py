@@ -12,7 +12,7 @@ from pathlib import Path
 from sage.blobs import BLOB_MARKER, BlobStore, is_blob_ref, require_digest
 from sage.bundle_io import load_bundle
 from sage.errors import ChainIntegrityError, SignatureMismatchError
-from sage.journal import save_journal
+from sage.journal import load_jsonl_objects, save_journal
 from sage.merkle import chain_merkle_root, merkle_root
 from sage.schema import SCHEMA_VERSION
 
@@ -141,6 +141,10 @@ def _redaction_summary(bundle) -> dict:
     }
 
 
+PACK_V2_REQUIRED = ("format", "bundle_hash", "blob_digests", "blob_merkle", "content_digest", "merkle_root",
+                    "witness_tip")
+
+
 def verify_pack_meta(
     meta: dict,
     *,
@@ -152,8 +156,16 @@ def verify_pack_meta(
     key_id: str | None = None,
     key_ring: str | Path | dict | None = None,
 ) -> None:
+    if not isinstance(meta, dict):
+        raise ChainIntegrityError("pack.json is not a JSON object")
+    if meta.get("format") == "sage.pack.v2":
+        missing = [name for name in PACK_V2_REQUIRED if meta.get(name) in (None, "")]
+        if missing:
+            raise ChainIntegrityError(f"pack.json missing required fields: {missing}")
     claimed = meta.get("content_digest")
-    if claimed and claimed != content_digest:
+    if not claimed:
+        raise ChainIntegrityError("pack.json missing content_digest")
+    if claimed != content_digest:
         raise ChainIntegrityError(
             f"pack content_digest mismatch: claimed={claimed!r} actual={content_digest!r}"
         )
@@ -336,6 +348,25 @@ def pack_artifact(
     return out
 
 
+def _check_pack_anchors(meta: dict, bundle, journal: Path) -> None:
+    """The attested pack.json anchors must describe the packed journal, not just each other."""
+    if meta.get("bundle_hash") != bundle.audit.bundle_hash:
+        raise ChainIntegrityError(
+            f"pack.json bundle_hash does not match the packed journal: "
+            f"claimed={meta.get('bundle_hash')!r} actual={bundle.audit.bundle_hash!r}"
+        )
+    claimed_merkle = meta.get("merkle_root")
+    if claimed_merkle and claimed_merkle != chain_merkle_root(bundle.audit.chain):
+        raise ChainIntegrityError("pack.json merkle_root does not match the packed journal chain")
+    tip = str(meta.get("witness_tip") or "no_witness")
+    if tip != "no_witness":
+        from sage.witness import WITNESS_JSONL
+
+        records, rejected = load_jsonl_objects(journal / WITNESS_JSONL)
+        if rejected or not records or records[-1].get("record_hash") != tip:
+            raise ChainIntegrityError("pack.json witness_tip does not match the packed witness log")
+
+
 def _materialize_unpacked(
     artifact: Path,
     dest: Path,
@@ -357,6 +388,12 @@ def _materialize_unpacked(
     key = hmac_key if hmac_key is not None else os.environ.get("SAGE_PACK_KEY")
 
     meta: dict = {}
+    if verify_attestation and not meta_path.is_file():
+        # Every pack this library writes carries pack.json; without it no attestation or
+        # signature can be checked, so a requested check would silently pass.
+        if require_signature:
+            raise SignatureMismatchError("pack missing pack.json (signature cannot be checked)")
+        raise ChainIntegrityError("pack missing pack.json")
     if meta_path.exists():
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
         if verify_attestation:
@@ -405,6 +442,8 @@ def _materialize_unpacked(
     bundle = load_bundle(journal, verify=True, rehydrate=False)
     if not custody_hash:
         custody_hash = bundle.audit.bundle_hash
+    elif verify_attestation:
+        _check_pack_anchors(meta, bundle, journal)
     bundle.metadata["blob_store"] = str(store.root)
     bundle.metadata["pack_bundle_hash"] = custody_hash
     save_journal(bundle, journal)

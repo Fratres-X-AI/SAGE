@@ -132,8 +132,8 @@ def apply_policy(report: dict[str, Any], policy: VerifyPolicy) -> list[str]:
         if count < policy.min_span_count:
             violations.append(f"span_count {count} < min_span_count {policy.min_span_count}")
     if policy.min_redaction_count:
-        summary = (report.get("pack") or {}).get("redaction_summary") or {}
-        count = int(summary.get("redaction_count") or report.get("redaction_count") or 0)
+        # The hash-bound count from the bundle, never pack.json's unauthenticated redaction_summary.
+        count = int(report.get("redaction_count") or 0)
         if count < policy.min_redaction_count:
             violations.append(
                 f"redaction_count {count} < min_redaction_count {policy.min_redaction_count}"

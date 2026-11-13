@@ -21,6 +21,13 @@ class ChainIntegrityError(SageError):
     """Parent-hash / monotonic sequence / audit-chain invariant violated."""
 
 
+class AuditChainMismatchError(ChainIntegrityError, ValueError):
+    """Recomputed audit chain or bundle_hash differs from the stored one.
+
+    Also a ValueError: releases before 2.3 raised ValueError here.
+    """
+
+
 class SignatureMismatchError(ChainIntegrityError):
     """Ed25519 signature is missing or does not verify against the pinned public key."""
 

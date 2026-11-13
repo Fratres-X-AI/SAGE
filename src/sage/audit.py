@@ -397,13 +397,35 @@ def verify_parent_content_hashes(bundle: IncidentBundle) -> None:
             )
 
 
+def require_normal_form(stored: Any, normalized: Any, what: str) -> None:
+    """Fail closed unless the stored object is exactly the normalized one the hashes cover.
+
+    Hashes are computed over the normalized form, so any stored difference (an unknown key, a
+    missing default, a different JSON type) would otherwise be accepted without being bound.
+    """
+    from sage.errors import ChainIntegrityError
+
+    if canonical_json(stored) == canonical_json(normalized):
+        return
+    field = "?"
+    if isinstance(stored, dict) and isinstance(normalized, dict):
+        for key in sorted(set(stored) | set(normalized)):
+            if key not in stored or key not in normalized or canonical_json(stored[key]) != canonical_json(
+                normalized[key]
+            ):
+                field = key
+                break
+    raise ChainIntegrityError(f"{what} is not in normal form (field {field!r}); stored content is not hash-bound")
+
+
 def require_verified(bundle: IncidentBundle) -> IncidentBundle:
     from sage.concurrency import validate_monotonic_chain
+    from sage.errors import AuditChainMismatchError
 
     bundle.validate(strict=True)
     verify_parent_integrity(bundle)
     validate_monotonic_chain(bundle)
     if not verify_audit_chain(bundle):
-        raise ValueError("audit chain or bundle_hash verification failed")
+        raise AuditChainMismatchError("audit chain or bundle_hash verification failed")
     verify_parent_content_hashes(bundle)
     return bundle

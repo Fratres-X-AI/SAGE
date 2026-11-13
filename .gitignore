@@ -25,3 +25,5 @@ keys.ring.json
 !**/*.example.json
 !examples/keys.ring.example.json
 
+
+.hypothesis/
