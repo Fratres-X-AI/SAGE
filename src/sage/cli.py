@@ -136,7 +136,15 @@ def _cmd_verify_receipt(args: argparse.Namespace) -> int:
 
 
 def _cmd_handoff(args: argparse.Namespace) -> int:
-    from sage.handoff import HandoffSetupError, create_handoff
+    from sage.handoff import HandoffLeakError, HandoffSetupError, create_handoff
+
+    def warn(report) -> None:
+        print(
+            f"sage handoff: warning: {report.summary()}. Values are not shown. Run "
+            f"`sage scan {Path(args.out_dir) / 'evidence.sage.tar.gz'}` for locations; "
+            "pass --fail-on-findings to block the handoff.",
+            file=sys.stderr,
+        )
 
     try:
         out = create_handoff(
@@ -149,13 +157,34 @@ def _cmd_handoff(args: argparse.Namespace) -> int:
             public_key=args.public_key,
             sign=True if args.sign else None,
             overwrite=args.overwrite,
+            blob_root=args.blob_root,
+            fail_on_findings=args.fail_on_findings,
+            on_scan_findings=warn,
         )
     except HandoffSetupError as exc:
         return _fail(str(exc), code=2)
+    except HandoffLeakError as exc:
+        return _fail(str(exc), code=1)
     except Exception as exc:
         return _fail(str(exc))
     print(str(out))
     return 0
+
+
+def _cmd_scan(args: argparse.Namespace) -> int:
+    from sage.scan import ScanSetupError, format_report, scan_path
+
+    try:
+        report = scan_path(args.path, rules=args.rule or None, blob_root=args.blob_root)
+    except ScanSetupError as exc:
+        return _fail(str(exc), code=2)
+    except ValueError as exc:
+        return _fail(str(exc), code=2)
+    if args.json:
+        print(json.dumps(report.to_dict(), indent=2, sort_keys=True))
+    else:
+        print(format_report(report))
+    return 0 if report.ok else 1
 
 
 def _cmd_version(_args: argparse.Namespace) -> int:
@@ -175,6 +204,7 @@ def _cmd_pack(args: argparse.Namespace) -> int:
             hmac_key=args.hmac_key,
             pack_version=args.pack_version,
             key_id=args.key_id,
+            blob_store=args.blob_root,
             sign=bool(getattr(args, "sign", False)) or None,
         )
     except Exception as exc:
@@ -616,7 +646,28 @@ def build_parser() -> argparse.ArgumentParser:
         help="Ed25519-sign the pack (needs SAGE_SIGN_PRIVATE_KEY / .[sign])",
     )
     handoff.add_argument("--overwrite", action="store_true", help="Replace a non-empty --out-dir")
+    handoff.add_argument("--blob-root", default=None, help="Blob store the bundle was recorded with")
+    handoff.add_argument(
+        "--fail-on-findings",
+        action="store_true",
+        help="Refuse to build the kit when the pre-share leak scan finds anything (default: warn)",
+    )
     handoff.set_defaults(func=_cmd_handoff)
+
+    scan = sub.add_parser(
+        "scan",
+        help="Pre-share leak check of a pack, bundle, or journal (never prints the values found)",
+    )
+    scan.add_argument("path")
+    scan.add_argument("--json", action="store_true", help="Machine-readable report")
+    scan.add_argument(
+        "--rule",
+        action="append",
+        default=None,
+        help="Only run this rule id (repeatable). Default: every rule",
+    )
+    scan.add_argument("--blob-root", default=None, help="Blob store for a bundle or journal's blobs")
+    scan.set_defaults(func=_cmd_scan)
 
     pack = sub.add_parser("pack", help="Pack bundle/journal + CAS blobs into portable .sage.tar.gz")
     pack.add_argument("path")
@@ -627,6 +678,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="HMAC key for pack attestation (or set SAGE_PACK_KEY)",
     )
     pack.add_argument("--pack-version", type=int, default=2, choices=[1, 2])
+    pack.add_argument("--blob-root", default=None, help="Blob store the bundle was recorded with")
     pack.add_argument("--key-id", default=None)
     pack.add_argument(
         "--sign",
