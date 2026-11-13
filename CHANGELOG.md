@@ -4,6 +4,18 @@
 
 Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fixtures/compat_v2_2_0`).
 
+### Release supply chain
+
+- Every GitHub Action is pinned to a commit SHA; workflows default to read-only tokens.
+- Tagged releases are built reproducibly (`scripts/repro_check.py`, also run in CI), signed with Sigstore,
+  carry SLSA build provenance, and land as a **draft** GitHub release. PyPI publishing uses trusted
+  publishing and stays off until the `SAGE_PYPI_ENABLED` repository variable is set.
+- New `scripts/verify_release.py` checks a downloaded release: checksums, Sigstore signatures, and
+  provenance. Missing tools exit 2 instead of skipping.
+- OpenSSF Scorecard and dependency-review workflows; `SECURITY.md` now states response targets.
+- `release_check.py` fails when a document title carries a stale `(vX.Y)` stamp.
+- `THREAT_MODEL.md` adds receipt substitution, policy downgrade, and release tampering.
+
 ### Redaction coverage
 
 - The redaction policy now applies to every span field that can carry captured text: error message,

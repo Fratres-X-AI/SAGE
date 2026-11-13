@@ -1,4 +1,4 @@
-# Verify & Handoff Runbook (v2.1)
+# Verify & Handoff Runbook (v2.3)
 
 ## Record → seal → ship
 

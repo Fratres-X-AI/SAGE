@@ -1,4 +1,4 @@
-# SAGE Threat Model (v2.0)
+# SAGE Threat Model (v2.3)
 
 SAGE is an **agent incident forensics** toolkit: portable, redactable, hash-chained evidence you can verify without trusting the producer’s UI.
 
@@ -37,6 +37,9 @@ Hashes and HMACs prove **artifact integrity under a key/policy**, not honesty of
 | Live-carcass presenter | Pass CI on unsealed journal | `--require-sealed` / policy `forbid_live_journal` |
 | Secret leaker via export | Ship API keys in evidence | Redact-before-hash + sanitize-on-close |
 | Split-brain writer | Two owners same `trace_id` | Trace registry + file locks |
+| Receipt substituter | Pass off a receipt from a different pack, key, or policy | Receipt binding: bundle hash and id, policy digest, and `expect_fingerprint` are checked against the freshly verified pack |
+| Policy downgrader | Verify under a weaker policy than the one requested | An explicit policy is never weakened to fit missing key material; missing material raises `HandoffSetupError` (exit 2) |
+| Release tamperer | Ship a modified wheel as an official release | Reproducible builds, `SHA256SUMS.json`, Sigstore signatures, and SLSA provenance; check with `scripts/verify_release.py` |
 
 ## Explicit non-goals (what SAGE does **not** prove)
 

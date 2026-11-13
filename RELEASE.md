@@ -46,19 +46,53 @@ git tag -a "v${VERSION}" -m "SAGE ${VERSION}"
 git push origin "v${VERSION}"
 ```
 
-`release.yml` builds sdist/wheel + SBOM artifact on `v*` tags. A release candidate (`rcN`) tag is a
-candidate, not a supported release; do not tag or publish without the operator's decision.
+A release candidate (`rcN`) tag is a candidate, not a supported release; do not tag or publish without
+the operator's decision.
 
-## PyPI (optional, when you have credentials)
+## What the release workflow does
 
-The package is not published on PyPI. Do not document `pip install sage-incident-bundles` as an
-install route until it is.
+Pushing a `v*` tag runs `.github/workflows/release.yml`. Every action is pinned to a commit SHA.
+
+1. **build**: checks the tag matches `sage.__version__`, runs `release_check.py`, the fast tests, the
+   auditor kit, and `scripts/repro_check.py` (two clean builds must be byte-identical). Then it builds
+   the wheel and sdist with `SOURCE_DATE_EPOCH` set to the commit time, writes `sbom.spdx.json`, and
+   writes `SHA256SUMS.json`.
+2. **attest-and-sign**: records SLSA build provenance for the wheel, sdist, and SBOM, and signs each
+   with Sigstore keyless signing (`<file>.sigstore.json` bundles).
+3. **draft-release**: creates a **draft** GitHub release with all files. Rc, alpha, and beta tags are
+   marked pre-release. Nothing is public until the operator reviews the draft and clicks Publish.
+4. **pypi**: skipped unless the repository variable `SAGE_PYPI_ENABLED` is `true`. It uses PyPI trusted
+   publishing from the `pypi` environment, so no token is stored. Add a required reviewer on that
+   environment before enabling it.
+
+To check reproducibility locally before tagging:
 
 ```bash
-python -m build
-python -m twine check dist/*
-# twine upload dist/*
+python scripts/repro_check.py
 ```
+
+## Verify a release
+
+Download every file from the GitHub release into one directory, then:
+
+```bash
+pip install sigstore          # for the signature check
+python scripts/verify_release.py <download dir> --tag vX.Y.Z
+```
+
+| Check | Needs | Proves |
+|-------|-------|--------|
+| `checksums` | nothing | Every file matches `SHA256SUMS.json` |
+| `sigstore` | `pip install sigstore` | Each file was signed by this repository's `release.yml` for that tag |
+| `provenance` | GitHub CLI `gh` | Each wheel and sdist has SLSA provenance from this repository's `release.yml` |
+
+A missing tool exits 2 rather than skipping. `--skip sigstore` or `--skip provenance` skips a check
+on purpose; the report lists it as `skipped`, never as passed. Exit 0 means every requested check passed.
+
+## PyPI
+
+The package is not published on PyPI. Do not document `pip install sage-incident-bundles` as an
+install route until it is. Publishing goes through the gated `pypi` job above; do not upload by hand.
 
 ## Do not ship
 

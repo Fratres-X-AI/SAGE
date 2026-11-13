@@ -1,20 +1,30 @@
 name: release
 
+# Runs only when a maintainer pushes a v* tag. It builds, attests, signs, and creates a DRAFT
+# GitHub release. Publishing the draft and uploading to PyPI are manual maintainer decisions.
+
 on:
   push:
     tags:
       - "v*"
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
       - name: Install build tooling
         run: pip install -e ".[dev]" build
+      - name: Tag matches package version
+        run: |
+          VERSION="$(python -c 'import sage; print(sage.__version__)')"
+          test "v${VERSION}" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} != v${VERSION}"; exit 1; }
       - name: Release gate
         run: python scripts/release_check.py
       - name: Tests
@@ -23,8 +33,12 @@ jobs:
         env:
           SAGE_PACK_KEY: release-key
         run: python examples/auditor_kit.py
+      - name: Reproducible build check
+        run: python scripts/repro_check.py
       - name: Build sdist/wheel
-        run: python -m build
+        run: |
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          python -m build
       - name: Generate SBOM
         run: python scripts/generate_sbom.py dist/sbom.spdx.json
       - name: Hash artifacts
@@ -33,16 +47,81 @@ jobs:
           import hashlib, json
           from pathlib import Path
           dist = Path("dist")
-          out = {}
-          for p in sorted(dist.iterdir()):
-              if p.is_file():
-                  out[p.name] = hashlib.sha256(p.read_bytes()).hexdigest()
+          out = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(dist.iterdir()) if p.is_file()}
           Path("dist/SHA256SUMS.json").write_text(json.dumps(out, indent=2, sort_keys=True) + "\n", encoding="utf-8")
           print(json.dumps(out, indent=2, sort_keys=True))
           PY
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: sage-release
-          path: |
-            dist/*
+          name: sage-dist
+          path: dist/*
+
+  attest-and-sign:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sage-dist
+          path: dist
+      - name: SLSA build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/sbom.spdx.json
+      - name: Sigstore keyless signatures
+        uses: sigstore/gh-action-sigstore-python@790bc6befb9d733738f18d8f895854b453640ec9 # v3.5.0
+        with:
+          inputs: ./dist/*.whl ./dist/*.tar.gz ./dist/sbom.spdx.json
+          upload-signing-artifacts: false
+          release-signing-artifacts: false
+      - name: Upload signed artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sage-dist-signed
+          path: dist/*
+
+  draft-release:
+    needs: attest-and-sign
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sage-dist-signed
+          path: dist
+      - name: Create draft release (not published)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PRERELEASE=""
+          case "${GITHUB_REF_NAME}" in *rc*|*a*|*b*) PRERELEASE="--prerelease" ;; esac
+          gh release create "${GITHUB_REF_NAME}" dist/* --repo "${GITHUB_REPOSITORY}" \
+            --draft ${PRERELEASE} --verify-tag --title "SAGE ${GITHUB_REF_NAME#v}" \
+            --notes "Draft. Verify with scripts/verify_release.py before publishing. See CHANGELOG.md."
+
+  pypi:
+    # Disabled until the maintainer sets repository variable SAGE_PYPI_ENABLED=true and configures
+    # a PyPI trusted publisher for environment "pypi".
+    if: vars.SAGE_PYPI_ENABLED == 'true'
+    needs: draft-release
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sage-dist
+          path: dist
+      - name: Keep only distributions
+        run: find dist -type f ! -name '*.whl' ! -name '*.tar.gz' -delete
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3

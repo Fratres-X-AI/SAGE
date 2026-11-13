@@ -23,6 +23,31 @@ Open a private security advisory on GitHub (Security tab, "Report a vulnerabilit
 
 Do **not** open a public issue for key-material, redaction, or bypass reports until a fix is released.
 
+## Response targets
+
+These are targets, not contractual guarantees.
+
+| Step | Target |
+|------|--------|
+| Acknowledge the report | 3 business days |
+| Initial assessment and severity | 7 days |
+| Fix or mitigation for critical and high severity (integrity bypass, secret leak) | 30 days |
+| Fix for medium and low severity | Next scheduled release, at most 90 days |
+| Public disclosure | Coordinated with the reporter after a fixed release is available, at most 90 days from the report |
+
+Fixed releases name the advisory in `CHANGELOG.md`. Credit is given unless the reporter asks otherwise.
+
+## Verifying a release
+
+Tagged releases are built reproducibly in GitHub Actions, signed with Sigstore, and carry SLSA build
+provenance. Check a downloaded release before installing it:
+
+```bash
+python scripts/verify_release.py <download dir> --tag vX.Y.Z
+```
+
+See `RELEASE.md` for what each check covers.
+
 ## Security invariants (regression bar)
 
 - Compact verify before rehydrate (hash binding).

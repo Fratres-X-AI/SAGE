@@ -16,6 +16,17 @@ def fail(msg: str) -> None:
     raise SystemExit(1)
 
 
+def stale_titles(root: Path, major_minor: str) -> list[str]:
+    """Markdown files whose first line ends in a `(vX.Y)` stamp other than the current one."""
+    problems = []
+    for doc in sorted([*root.glob("*.md"), *(root / "docs").rglob("*.md")]):
+        title = doc.read_text(encoding="utf-8").splitlines()[:1]
+        stamp = re.search(r"\(v(\d+\.\d+)\)\s*$", title[0]) if title else None
+        if stamp and stamp.group(1) != major_minor:
+            problems.append(f"{doc.relative_to(root).as_posix()} title says v{stamp.group(1)}; current is v{major_minor}")
+    return problems
+
+
 def main() -> int:
     from sage.version import FORMATS, STABLE_PUBLIC_API, __version__
 
@@ -62,6 +73,10 @@ def main() -> int:
         "examples/keys.ring.example.json",
         "scripts/recipient_check.py",
     ]
+    stale = stale_titles(ROOT, ".".join(__version__.split(".")[0:2]))
+    if stale:
+        fail("; ".join(stale))
+
     runbook = (ROOT / "docs" / "VERIFY_RUNBOOK.md").read_text(encoding="utf-8")
     if "require-signature" not in runbook or "AUDITOR_KIT" not in runbook:
         fail("VERIFY_RUNBOOK.md missing pinned-signature / auditor kit path")
