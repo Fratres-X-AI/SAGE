@@ -45,6 +45,12 @@ sign = ["cryptography>=42"]
 langchain = ["langchain-core==1.8.0"]
 # Exact versions exercised by tests/integration_langgraph.
 langgraph = ["langchain-core==1.8.0", "langgraph==1.2.21"]
+# Exact version exercised by tests/integration_otlp (binary OTLP protobuf import; JSON needs nothing).
+otlp = ["opentelemetry-proto==1.45.2"]
+# Exact version exercised by tests/integration_openai_agents.
+openai-agents = ["openai-agents==0.24.0"]
+# Exact versions exercised by tests/integration_pydantic_ai (the adapter needs the OTel SDK).
+pydantic-ai = ["pydantic-ai-slim==2.68.0", "opentelemetry-sdk==1.45.2"]
 attr = ["numpy>=1.26"]
 train = ["numpy>=1.26", "torch>=2.2"]
 tui = ["textual>=0.80"]
