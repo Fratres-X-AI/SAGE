@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 from collections.abc import Mapping
+from functools import lru_cache
 from typing import Any
 
 from sage.schema import AuditBlock, IncidentBundle, SCHEMA_VERSION
@@ -46,6 +47,20 @@ def sha256_digest(value: Any) -> str:
     return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
 
 
+@lru_cache(maxsize=512)
+def _compiled_pattern(pattern: str) -> "re.Pattern[str]":
+    """Compile a redaction value pattern once per process (invalid patterns still raise each time)."""
+    return re.compile(pattern)
+
+
+@lru_cache(maxsize=8192)
+def _is_sensitive_key(key_l: str, key_fragments: tuple[str, ...]) -> bool:
+    for fragment in key_fragments:
+        if fragment in key_l:
+            return key_l not in SAFE_KEY_ALLOWLIST and not key_l.endswith("_tokens")
+    return False
+
+
 def _scrub_string(
     text: str,
     *,
@@ -55,12 +70,45 @@ def _scrub_string(
 ) -> str:
     scrubbed = text
     for pattern in value_patterns:
-        regex = re.compile(pattern)
+        regex = _compiled_pattern(pattern)
         if regex.search(scrubbed):
             scrubbed, count = regex.subn("[REDACTED]", scrubbed)
             if count and redacted_paths is not None:
                 redacted_paths.append({"path": path, "reason": f"value_pattern:{pattern}"})
     return scrubbed
+
+
+def _redact_untracked(
+    value: Any,
+    key_fragments: tuple[str, ...],
+    compiled: tuple["re.Pattern[str]", ...],
+) -> Any:
+    """`redact_value` without path bookkeeping. Same output; used when no redaction log is kept."""
+    kind = type(value)
+    if kind is str:
+        for regex in compiled:
+            if regex.search(value):
+                value = regex.sub("[REDACTED]", value)
+        return value
+    if value is None or kind is int or kind is float or kind is bool:
+        return value
+    if kind is dict or isinstance(value, Mapping):
+        redacted: dict[str, Any] = {}
+        for key, child in value.items():
+            key_l = key.lower() if type(key) is str else str(key).lower()
+            if _is_sensitive_key(key_l, key_fragments):
+                redacted[key] = "[REDACTED]"
+            else:
+                redacted[key] = _redact_untracked(child, key_fragments, compiled)
+        return redacted
+    if isinstance(value, list):
+        return [_redact_untracked(child, key_fragments, compiled) for child in value]
+    if isinstance(value, str):
+        for regex in compiled:
+            if regex.search(value):
+                value = regex.sub("[REDACTED]", value)
+        return value
+    return value
 
 
 def redact_value(
@@ -71,18 +119,18 @@ def redact_value(
     key_fragments: tuple[str, ...] = DEFAULT_REDACTION_KEYS,
     value_patterns: tuple[str, ...] = DEFAULT_VALUE_PATTERNS,
 ) -> Any:
+    if type(key_fragments) is not tuple:
+        key_fragments = tuple(key_fragments)
+    if redacted_paths is None:
+        compiled = tuple(_compiled_pattern(pattern) for pattern in value_patterns)
+        return _redact_untracked(value, key_fragments, compiled)
     if isinstance(value, Mapping):
         redacted: dict[str, Any] = {}
         for key, child in value.items():
             child_path = f"{path}.{key}" if path else str(key)
-            key_l = str(key).lower()
-            is_sensitive = any(fragment in key_l for fragment in key_fragments) and (
-                key_l not in SAFE_KEY_ALLOWLIST and not key_l.endswith("_tokens")
-            )
-            if is_sensitive:
+            if _is_sensitive_key(str(key).lower(), key_fragments):
                 redacted[key] = "[REDACTED]"
-                if redacted_paths is not None:
-                    redacted_paths.append({"path": child_path, "reason": "sensitive_key"})
+                redacted_paths.append({"path": child_path, "reason": "sensitive_key"})
             else:
                 redacted[key] = redact_value(
                     child,
@@ -175,8 +223,14 @@ def redact_bundle(
         bundle.redaction_policy, key_fragments=key_fragments, value_patterns=value_patterns
     )
     # Bypass strict validation during clone of in-progress/raw bundles.
-    raw = copy.deepcopy(bundle.to_dict())
+    # Spans are not deep-copied: `redact_span` below rebuilds every container they hold, so the
+    # clone never shares a mutable container with the source. Everything else is deep-copied.
+    raw = bundle.to_dict()
+    span_dicts = raw.pop("spans")
     raw["audit"] = {"chain": [], "bundle_hash": ""}
+    raw["audit_chain"] = []
+    raw = copy.deepcopy(raw)
+    raw["spans"] = span_dicts
     clone = IncidentBundle.from_dict(raw)
     redactions: list[dict[str, str]] = []
     clone.metadata = redact_value(
