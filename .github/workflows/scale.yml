@@ -1,0 +1,43 @@
+name: scale
+
+# The nuclear forensics gauntlet (tests/test_nuclear_stress.py) at about ten times its default
+# scale. Weekly, on demand, and on release-candidate PRs (head branch world-class/rc-*).
+
+on:
+  schedule:
+    - cron: "43 5 * * 2"
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scale-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nuclear-scale:
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'world-class/rc-')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      SAGE_NUCLEAR_STREAM_MB: "1024"
+      SAGE_NUCLEAR_WORKERS: "128"
+      SAGE_NUCLEAR_CAS_OPS: "2048"
+      SAGE_NUCLEAR_PACKS: "64"
+      SAGE_NUCLEAR_FANOUT: "2000"
+      SAGE_NUCLEAR_MAX_S: "1500"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Nuclear gauntlet at scale
+        run: python -m pytest tests/test_nuclear_stress.py -m slow -v -s --tb=short
