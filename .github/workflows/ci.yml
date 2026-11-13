@@ -63,6 +63,36 @@ jobs:
             done
           done
 
+  journal-benchmark:
+    # Measurement, not an SLA: per-span recording cost by durability mode and payload size.
+    runs-on: ubuntu-latest
+    env:
+      LANGCHAIN_TRACING_V2: "false"
+      LANGSMITH_TRACING: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install (pinned langchain-core)
+        run: pip install -e ".[dev,langchain]" -c constraints/langchain.txt
+      - name: Journal per-span cost (durability x payload size)
+        run: >
+          python scripts/measure_overhead.py --mode journal --durability all
+          --spans 2000 --span-mode-spans 500 --payload-bytes 64,512,4096,32768
+          --max-default-median-ms 1.0 --out benchmark/journal.json
+      - name: Consultancy workflow overhead (each durability mode)
+        run: >
+          python scripts/measure_overhead.py --mode workflow --durability all
+          --runs 100 --warmup 10 --out benchmark/workflow.json
+      - name: Upload benchmark JSON
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: journal-benchmark
+          path: benchmark/*.json
+          if-no-files-found: error
+
   wheel-recipient:
     runs-on: ubuntu-latest
     env:
