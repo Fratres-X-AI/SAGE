@@ -213,6 +213,18 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     return 0 if report.get("ok") else 1
 
 
+def _cmd_key_fingerprint(args: argparse.Namespace) -> int:
+    from sage.signing import public_key_fingerprint
+
+    try:
+        material = Path(args.file).read_text(encoding="utf-8")
+        fingerprint = public_key_fingerprint(material)
+    except (OSError, ValueError) as exc:
+        return _fail(str(exc))
+    print(json.dumps({"alg": "ed25519", "fingerprint_sha256": fingerprint, "file": str(args.file)}, indent=2))
+    return 0
+
+
 def _cmd_keygen(args: argparse.Namespace) -> int:
     from sage.signing import write_keypair
 
@@ -422,6 +434,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     keygen.add_argument("--out", required=True, help="Output JSON path (keep private)")
     keygen.set_defaults(func=_cmd_keygen)
+
+    key = sub.add_parser("key", help="Key utilities")
+    key_sub = key.add_subparsers(dest="key_command", required=True)
+    key_fp = key_sub.add_parser(
+        "fingerprint",
+        help="SHA-256 fingerprint of an Ed25519 public key file (compare with the producer's, out of band)",
+    )
+    key_fp.add_argument("file", help="file holding the urlsafe-base64 public key (for example ed25519.public.txt)")
+    key_fp.set_defaults(func=_cmd_key_fingerprint)
 
     inspect = sub.add_parser("inspect", help="Validate and summarize an incident bundle")
     inspect.add_argument("path")
@@ -684,6 +705,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    # `sage handoff <path>` builds a kit; `sage handoff verify <kit>` verifies one.
+    if argv[:2] == ["handoff", "verify"]:
+        from sage.handoff_verify import main as verify_kit
+
+        raise SystemExit(verify_kit(argv[2:], kit_required=True))
     parser = build_parser()
     args = parser.parse_args(argv)
     code = args.func(args)

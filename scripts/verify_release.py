@@ -6,7 +6,7 @@ Checks, in order (each one fails closed):
 1. checksums   every file listed in SHA256SUMS.json exists and matches its SHA-256.
 2. sigstore    each wheel/sdist/SBOM has a <file>.sigstore.json bundle whose certificate was issued
                to this repository's release workflow for the given tag (needs `pip install sigstore`).
-3. provenance  each wheel/sdist has a GitHub SLSA build-provenance attestation from this repository
+3. provenance  each wheel/sdist/verifier has a GitHub SLSA build-provenance attestation from this repository
                (needs the GitHub CLI `gh`).
 
 Exit codes: 0 all requested checks passed; 1 a check failed; 2 setup problem (missing file or tool).
@@ -24,7 +24,7 @@ from pathlib import Path
 
 DEFAULT_REPO = "Fratres-X-AI/SAGE"
 OIDC_ISSUER = "https://token.actions.githubusercontent.com"
-SIGNED_SUFFIXES = (".whl", ".tar.gz", ".spdx.json")
+SIGNED_SUFFIXES = (".whl", ".tar.gz", ".pyz", ".spdx.json")
 
 
 class SetupError(Exception):

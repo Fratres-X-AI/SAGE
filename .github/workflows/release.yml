@@ -39,6 +39,7 @@ jobs:
         run: |
           export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
           python -m build
+          python scripts/build_verifier.py --out dist
       - name: Generate SBOM
         run: python scripts/generate_sbom.py dist/sbom.spdx.json
       - name: Hash artifacts
@@ -75,11 +76,12 @@ jobs:
           subject-path: |
             dist/*.whl
             dist/*.tar.gz
+            dist/*.pyz
             dist/sbom.spdx.json
       - name: Sigstore keyless signatures
         uses: sigstore/gh-action-sigstore-python@790bc6befb9d733738f18d8f895854b453640ec9 # v3.5.0
         with:
-          inputs: ./dist/*.whl ./dist/*.tar.gz ./dist/sbom.spdx.json
+          inputs: ./dist/*.whl ./dist/*.tar.gz ./dist/*.pyz ./dist/sbom.spdx.json
           upload-signing-artifacts: false
           release-signing-artifacts: false
       - name: Upload signed artifacts

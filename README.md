@@ -51,21 +51,18 @@ The output directory must not already exist (or must be empty).
 Verify the kit as a recipient would. In the demo the keys are in `../keys` relative to the kit:
 
 ```bash
-cd demo-runs/run-01/handoff
-export SAGE_PACK_KEY="$(cat ../keys/hmac.key)"
-python verify_handoff.py --public-key="$(cat ../keys/ed25519.public.txt)"   # exit 0; prints pinned_key_fingerprint
-unset SAGE_PACK_KEY; cd ../../..                                           # back to the repo root
+sage handoff verify demo-runs/run-01/handoff --hmac-key-file demo-runs/run-01/keys/hmac.key --public-key-file demo-runs/run-01/keys/ed25519.public.txt
+sage key fingerprint demo-runs/run-01/keys/ed25519.public.txt    # same value as pinned_key_fingerprint above
 ```
 
-```powershell
-cd demo-runs\run-01\handoff
-$env:SAGE_PACK_KEY = (Get-Content -Raw ..\keys\hmac.key).Trim()
-python verify_handoff.py --public-key="$((Get-Content -Raw ..\keys\ed25519.public.txt).Trim())"
-Remove-Item Env:SAGE_PACK_KEY; cd ..\..\..
-```
+The same commands work in PowerShell (`\` or `/` in paths). Exit `0` means the evidence, policy, and
+receipt all verified. On failure, `error_type` names what failed (`SignatureMismatchError`,
+`ReceiptMismatchError`, `PolicyViolationError`, `ChainIntegrityError`).
 
 A real recipient has no checkout: they get the kit, the wheel, and the two key files separately, and
-follow `HANDOFF.md`.
+follow `HANDOFF.md`. A recipient who cannot install packages can use the single-file verifier from
+the release, `sage-verify-<version>.pyz`, which needs only Python 3.10 or newer:
+`python sage-verify-<version>.pyz <kit> --hmac-key-file <file> --public-key-file <file>`.
 
 ## 60-second loop
 

@@ -11,7 +11,7 @@ from pathlib import Path
 
 from sage.blobs import BLOB_MARKER, BlobStore, is_blob_ref, require_digest
 from sage.bundle_io import load_bundle
-from sage.errors import ChainIntegrityError
+from sage.errors import ChainIntegrityError, SignatureMismatchError
 from sage.journal import save_journal
 from sage.merkle import chain_merkle_root, merkle_root
 from sage.schema import SCHEMA_VERSION
@@ -192,7 +192,7 @@ def verify_pack_meta(
         from sage.signing import verify_signature
 
         if not sig:
-            raise ChainIntegrityError("pack missing ed25519 signature")
+            raise SignatureMismatchError("pack missing ed25519 signature")
         # require_signature ⇒ pinned key (TOFU refused unless allow_tofu_signature).
         verify_signature(
             custody_payload,

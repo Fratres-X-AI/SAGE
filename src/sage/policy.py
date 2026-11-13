@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from sage.errors import ChainIntegrityError
+from sage.errors import ChainIntegrityError, PolicyViolationError
 
 POLICY_FORMAT = "sage.verify.policy.v1"
 
@@ -145,5 +145,5 @@ def apply_policy(report: dict[str, Any], policy: VerifyPolicy) -> list[str]:
     }
     if violations:
         report["ok"] = False
-        raise ChainIntegrityError("policy violations: " + "; ".join(violations))
+        raise PolicyViolationError("policy violations: " + "; ".join(violations))
     return violations

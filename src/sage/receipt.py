@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from sage.errors import ChainIntegrityError
+from sage.errors import ChainIntegrityError, ReceiptMismatchError
 from sage.keys import resolve_key_material
 from sage.schema import utc_now
 
@@ -105,19 +105,19 @@ def verify_receipt(
         key, _ = resolve_key_material(env_fallback=("SAGE_VERIFY_KEY", "SAGE_PACK_KEY"))
     if not att.get("mac"):
         if not allow_unsigned:
-            raise ChainIntegrityError("receipt missing HMAC attestation (refuse unsigned)")
+            raise ReceiptMismatchError("receipt missing HMAC attestation (refuse unsigned)")
     else:
         if key is None:
             raise ChainIntegrityError("receipt has MAC but no verify key available")
         payload = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
         expected = hmac.new(key, payload, hashlib.sha256).hexdigest()
         if not hmac.compare_digest(str(att["mac"]), expected):
-            raise ChainIntegrityError("receipt MAC mismatch")
+            raise ReceiptMismatchError("receipt MAC mismatch")
     if expect_fingerprint and body.get("artifact_fingerprint") != expect_fingerprint:
-        raise ChainIntegrityError(
+        raise ReceiptMismatchError(
             f"receipt fingerprint mismatch: claimed={body.get('artifact_fingerprint')!r} "
             f"expected={expect_fingerprint!r}"
         )
     if not body.get("ok"):
-        raise ChainIntegrityError("receipt records failed verification")
+        raise ReceiptMismatchError("receipt records failed verification")
     return {"ok": True, "receipt": body, "key_id": att.get("key_id"), "mac_verified": bool(att.get("mac"))}

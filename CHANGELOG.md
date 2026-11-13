@@ -4,6 +4,22 @@
 
 Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fixtures/compat_v2_2_0`).
 
+### Recipient experience
+
+- New error types `SignatureMismatchError`, `ReceiptMismatchError`, and `PolicyViolationError`. They
+  subclass `ChainIntegrityError`, so existing handlers keep working. The handoff helper reports
+  them in `error_type`.
+- The handoff helper takes `--hmac-key-file` and `--public-key-file`, so recipients no longer read key
+  files with shell syntax. `HANDOFF.md`, the README, and the auditor kit guide use them.
+- New `sage handoff verify <kit>` (same checks and exit codes as the kit's `verify_handoff.py`) and
+  `sage key fingerprint <file>`. `sage handoff <path> --out-dir ...` still builds kits.
+- Releases include `sage-verify-<version>.pyz`, a reproducible single-file verifier that needs only
+  Python 3.10+. Without `cryptography` it verifies Ed25519 signatures with a bundled pure-Python,
+  verification-only implementation checked against RFC 8032 and `cryptography`.
+- The missing-`cryptography` message names the installed SAGE version and the exact install command.
+- The kit helper is now generated from `sage/handoff_verify.py`, one source for the kit, the CLI, and
+  the single-file verifier.
+
 ### LangGraph and wider LangChain coverage
 
 - New optional `[langgraph]` extra (pinned `langgraph==1.2.21`) and `constraints/langgraph.txt`.

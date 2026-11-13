@@ -20,11 +20,15 @@ sage handoff ship.sage.tar.gz --out-dir ./evidence-kit --hmac-key "$SAGE_PACK_KE
 HMAC-only (strict):
 
 ```bash
+sage handoff verify ./evidence-kit --hmac-key-file <keys>/hmac.key   # key file shared out-of-band
+# or, inside the kit:
 cd evidence-kit
-export SAGE_PACK_KEY=...          # shared out-of-band
-export SAGE_VERIFY_KEY=...        # optional distinct receipt key
+python verify_handoff.py --hmac-key-file <keys>/hmac.key
+# or with environment variables (SAGE_VERIFY_KEY is an optional distinct receipt key):
+export SAGE_PACK_KEY=...
+export SAGE_VERIFY_KEY=...
 python verify_handoff.py
-# or
+# or, step by step:
 sage verify evidence.sage.tar.gz \
   --policy policies/strict.json \
   --witness \

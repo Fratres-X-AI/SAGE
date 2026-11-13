@@ -21,6 +21,18 @@ class ChainIntegrityError(SageError):
     """Parent-hash / monotonic sequence / audit-chain invariant violated."""
 
 
+class SignatureMismatchError(ChainIntegrityError):
+    """Ed25519 signature is missing or does not verify against the pinned public key."""
+
+
+class ReceiptMismatchError(ChainIntegrityError):
+    """Verification receipt is unsigned, altered, failed, or bound to a different pack or policy."""
+
+
+class PolicyViolationError(ChainIntegrityError):
+    """The artifact verified but breaks the verification policy."""
+
+
 class SecurityDivergence(SageError):
     """Heal / make-test path attempted layout or parent-graph manipulation."""
 

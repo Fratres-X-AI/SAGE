@@ -55,9 +55,10 @@ Pushing a `v*` tag runs `.github/workflows/release.yml`. Every action is pinned 
 
 1. **build**: checks the tag matches `sage.__version__`, runs `release_check.py`, the fast tests, the
    auditor kit, and `scripts/repro_check.py` (two clean builds must be byte-identical). Then it builds
-   the wheel and sdist with `SOURCE_DATE_EPOCH` set to the commit time, writes `sbom.spdx.json`, and
-   writes `SHA256SUMS.json`.
-2. **attest-and-sign**: records SLSA build provenance for the wheel, sdist, and SBOM, and signs each
+   the wheel, sdist, and single-file verifier (`sage-verify-<version>.pyz`, from
+   `scripts/build_verifier.py`) with `SOURCE_DATE_EPOCH` set to the commit time, writes
+   `sbom.spdx.json`, and writes `SHA256SUMS.json`.
+2. **attest-and-sign**: records SLSA build provenance for the wheel, sdist, verifier, and SBOM, and signs each
    with Sigstore keyless signing (`<file>.sigstore.json` bundles).
 3. **draft-release**: creates a **draft** GitHub release with all files. Rc, alpha, and beta tags are
    marked pre-release. Nothing is public until the operator reviews the draft and clicks Publish.
