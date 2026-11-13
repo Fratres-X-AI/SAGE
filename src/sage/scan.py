@@ -204,13 +204,15 @@ class _Scanner:
                 pass
         text = raw.decode("utf-8", errors="replace")
         if member.endswith(".jsonl"):
-            for number, line_text in enumerate(text.splitlines(), start=1):
+            line_no = 0
+            for line_text in text.splitlines():
                 if not line_text.strip():
                     continue
+                line_no += 1
                 try:
-                    self.json(json.loads(line_text), member, line=number)
+                    self.json(json.loads(line_text), member, line=line_no)
                 except json.JSONDecodeError:
-                    self.text(line_text, member, line=number)
+                    self.text(line_text, member, line=line_no)
             return
         stripped = text.lstrip()
         if stripped[:1] in ("{", "[", '"'):
