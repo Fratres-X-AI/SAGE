@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__version__ = "2.3.0rc1"
+__version__ = "2.3.0"
 
 # Bundle / span schema (content model). Independent of package semver.
 SCHEMA_VERSION = "1.0"

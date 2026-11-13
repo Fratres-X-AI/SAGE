@@ -28,7 +28,7 @@ Observability products already exist. The gap is a **backend-neutral forensic pa
 SAGE is a **security tool**, not a chat UI, not an RCA leaderboard, and not “AI observability SaaS.”
 
 Latest published release: **v2.2.0** (the badge above). A source checkout of this branch is the
-**2.3.0rc1** release candidate, which is not published; the instructions below use the checkout.
+**2.3.0** final candidate, which is not published yet; the instructions below use the checkout.
 
 ## Five-minute pilot demonstration
 

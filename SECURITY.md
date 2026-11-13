@@ -6,7 +6,7 @@ SAGE is developed as a **fail-closed forensic / security tool**.
 
 | Version | Supported |
 |---------|-----------|
-| 2.3.x (candidate `2.3.0rc1`) | Release candidate: test it; report issues against it |
+| 2.3.x (`2.3.0`, not yet published) | Final candidate: test it; report issues against it |
 | 2.2.x | Yes (current release) |
 | 2.1.x | Security fixes; upgrade to 2.2.x |
 | 2.0.x | No; upgrade to 2.2.x |

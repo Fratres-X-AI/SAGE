@@ -95,7 +95,7 @@ a `HandoffLeakWarning`, or calls `on_scan_findings` if you pass one.
 ## Local paths in sealed metadata
 
 SAGE 2.2 and earlier wrote the absolute blob store path into `metadata.blob_store`, which put the
-producer's user name and directory layout in shared evidence. From 2.3.0rc1, `blob_store` is
+producer's user name and directory layout in shared evidence. From 2.3.0, `blob_store` is
 written relative to the working directory, or left out when the store is outside it. Reading still
 works: SAGE first uses the store the bundle was sealed with in the same process, then
 `metadata.blob_store`, then the default `.sage/blobs`. For a store outside the working directory,

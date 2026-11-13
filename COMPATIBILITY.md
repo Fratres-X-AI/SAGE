@@ -18,7 +18,7 @@ Research surfaces (`sage research *`, attribution training) are **not** under th
 - `--require-signature` now **refuses TOFU** (embedded pack public key alone). Supply a pinned key via `--public-key`, `SAGE_SIGN_PUBLIC_KEY`, or key ring. Escape hatch: `--allow-tofu-signature`.
 - Deprecated top-level `sage attribute|train|bench|synth` aliases removed; use `sage research …`.
 
-## 2.3 notes (release candidate 2.3.0rc1, non-breaking)
+## 2.3 notes (2.3.0, non-breaking)
 
 - No frozen format changed. Artifacts sealed by 2.2.0 verify unchanged (`tests/fixtures/compat_v2_2_0`).
 - Newly recorded spans redact error message and stack, failure context, events, and span name. Old
@@ -55,7 +55,7 @@ OTLP import behavior to know:
 - Span ids are stored as 16-digit lowercase hex whether the input used hex or base64.
 - Token counts are copied to `data["usage"]` as `prompt_tokens` / `completion_tokens` / `total_tokens`
   (OpenInference) or `input_tokens` / `output_tokens` (GenAI). The raw `llm.token_count.*` attributes
-  are kept too while their values are numbers (before 2.3.0rc1 they were replaced by `[REDACTED]`).
+  are kept too while their values are numbers (before 2.3.0 they were replaced by `[REDACTED]`).
 - An `exception` event becomes the span error (type, message, stack with directory names cut).
 - Not supported: compressed exports (gzip/zstd files), OTLP logs and metrics, span links, resource
   attributes such as `service.name` (the instrumentation scope is kept per span). Duplicate span

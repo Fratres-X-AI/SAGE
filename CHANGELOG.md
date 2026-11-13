@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.3.0rc1 — 2026-11-12 (release candidate, not published)
+## 2.3.0 — unreleased (final candidate, not published)
 
 Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fixtures/compat_v2_2_0`).
 

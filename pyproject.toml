@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sage-incident-bundles"
-version = "2.3.0rc1"
+version = "2.3.0"
 description = "Fail-closed agent incident forensics: portable sealed bundles, custody, and third-party verify."
 readme = "README.md"
 requires-python = ">=3.10"
