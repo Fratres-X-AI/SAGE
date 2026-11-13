@@ -2,7 +2,8 @@
 
 ## 2.3.0 — unreleased (final candidate, not published)
 
-Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fixtures/compat_v2_2_0`).
+Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fixtures/compat_v2_2_0`). A
+`tests/fixtures/compat_v2_3_0` snapshot pins the 2.3.0 seal/pack shape for the next release line.
 
 ### Assurance
 

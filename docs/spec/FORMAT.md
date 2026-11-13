@@ -529,4 +529,4 @@ section 7.1 TEST 1 Ed25519 key pair. Never use either for real evidence.
 ## 12. Versioning
 
 A change to any byte defined here changes the format version. Readers MUST keep accepting earlier
-2.x artifacts: `tests/fixtures/compat_v2_2_0` must verify unchanged.
+2.x artifacts: `tests/fixtures/compat_v2_2_0` and `tests/fixtures/compat_v2_3_0` must verify unchanged.
