@@ -31,6 +31,36 @@ Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fix
 - `constraints/otel-agents.txt` and a CI job (`otel-agents-integration`). `release_check.py` checks the
   new exact pins.
 
+### Redaction detectors and pre-share leak check
+
+See `docs/REDACTION.md`.
+
+- New opt-in detectors, all off by default: `openai_key`, `anthropic_key`, `aws_access_key_id`,
+  `github_token`, `slack_token`, `google_api_key`, `stripe_key`, `private_key_pem`, `jwt`,
+  `bearer_token`, `email`, `card_number` (issuer prefix and Luhn check), `high_entropy`, and
+  `local_path`. Turn them on with `redaction_policy={"detectors": [...]}` or `["all"]`. They run before
+  hashing, like the existing rules. With no detectors, output and bundle hashes are byte-identical to
+  2.2 (pinned by a test).
+- New `sage scan <pack|bundle|journal>` (`--json`, `--rule`, `--blob-root`). It reports possible leaks
+  by rule id and location (file member, line, span id, JSON path), including `pack.json`, journal
+  metadata, blobs, and dict keys. It never prints a value, only its length and a SHA-256 prefix. Exit
+  codes: 0 no findings, 1 findings, 2 setup or usage error.
+- `sage handoff` scans the pack it builds and warns on stderr when there are findings.
+  `--fail-on-findings` refuses to build the kit. New `--blob-root` on `sage pack` and `sage handoff`.
+- **Behaviour change (token counts):** new recordings keep token counts. Before, any key containing
+  `token` was redacted unless it was on a short allowlist or ended in `_tokens`, so
+  `llm.token_count.*` and `*_tokens_details` became `[REDACTED]`. Now a usage-count key keeps its
+  value when the value is a number, `None`, or a dict or list of those. Strings under usage-count keys
+  are now redacted (before, `input_tokens: "..."` or any `*_tokens` string was kept). Credential keys
+  (`token`, `access_token`, `refresh_token`, `id_token`, `session_token`, `x-auth-token`, ...) stay
+  redacted whatever the value.
+- **Fixed:** sealing wrote the absolute blob store path into `metadata.blob_store`, leaking the
+  producer's user name and directory layout into shared evidence. It is now relative to the working
+  directory, or left out when the store is outside it. Blobs are still found in the same process; in
+  a new process, pass `--blob-root` for a store outside the working directory. Bundles sealed by 2.2
+  keep their path and still verify. Default recordings now hash differently from 2.2 because of this
+  metadata change.
+
 
 ### Recipient experience
 
