@@ -37,7 +37,7 @@ deterministic test model, a tool failure, a sealed and signed pack, and a recipi
 From the repository root (tested with Python 3.10 and 3.12):
 
 ```bash
-python -m venv .venv
+python -m venv .venv                    # Windows: py -3.12 -m venv .venv
 . .venv/bin/activate                    # PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install -e ".[langchain,sign]"
 python examples/consultancy_demo.py --scenario tool-error --mode sync --out demo-runs/run-01
@@ -48,12 +48,18 @@ python examples/consultancy_demo.py --scenario tool-error --mode sync --out demo
 evidence verification. Scenarios: `success`, `tool-error`, `tool-timeout`; modes: `sync`, `async`.
 The output directory must not already exist (or must be empty).
 
-Verify the kit as a recipient would (bash; `handoff/HANDOFF.md` also shows PowerShell):
+Verify the kit as a recipient would. In the demo the keys are in `../keys` relative to the kit:
 
 ```bash
 cd demo-runs/run-01/handoff
 export SAGE_PACK_KEY="$(cat ../keys/hmac.key)"
 python verify_handoff.py --public-key="$(cat ../keys/ed25519.public.txt)"   # exit 0; prints pinned_key_fingerprint
+```
+
+```powershell
+cd demo-runs\run-01\handoff
+$env:SAGE_PACK_KEY = (Get-Content -Raw ..\keys\hmac.key).Trim()
+python verify_handoff.py --public-key="$((Get-Content -Raw ..\keys\ed25519.public.txt).Trim())"
 ```
 
 A real recipient has no checkout: they get the kit, the wheel, and the two key files separately, and

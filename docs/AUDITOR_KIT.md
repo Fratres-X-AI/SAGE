@@ -57,9 +57,9 @@ directory. `SAGE_PACK_KEY` holds the key itself, not a path:
 
 ```bash
 python -m pip install "sage_incident_bundles-<version>-py3-none-any.whl[sign]"
-cd kit
-export SAGE_PACK_KEY="$(cat hmac.key)"                       # provisioned separately
-python verify_handoff.py --public-key="$(cat ed25519.public.txt)"
+cd kit                                                        # <keys>: where the separately received key files are
+export SAGE_PACK_KEY="$(cat <keys>/hmac.key)"
+python verify_handoff.py --public-key="$(cat <keys>/ed25519.public.txt)"
 ```
 
 The output includes `pinned_key_fingerprint` (SHA-256 of the urlsafe-base64-decoded key); compare

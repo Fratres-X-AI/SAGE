@@ -30,6 +30,9 @@ This directory is an offline-verifiable incident evidence kit.
 - `verify.receipt.json`: verification receipt bound to this pack and policy
 - `verify_handoff.py`: recipient re-verification helper
 
+Any other file a producer adds (for example `INCIDENT_SUMMARY.md` or `build_record.json`) is a
+convenience note, not evidence. Only the pack, verified as below, is evidence.
+
 ## What the recipient needs (provisioned separately, never inside this kit)
 
 - The SAGE wheel (`sage_incident_bundles-<version>-py3-none-any.whl`) and Python 3.10 or newer.
@@ -49,28 +52,36 @@ HMAC, while only the holder of the signing private key can produce a valid signa
    otherwise the plain wheel is enough.
 
    ```bash
-   python -m venv sage-venv
+   python -m venv sage-venv                        # Windows: py -3.12 -m venv sage-venv
    . sage-venv/bin/activate                        # PowerShell: sage-venv\\Scripts\\Activate.ps1
    python -m pip install "sage_incident_bundles-<version>-py3-none-any.whl[sign]"
    ```
 
+   In the commands below, `<keys>` is wherever you saved the key files you received separately
+   (they are not in this directory). Run the commands from inside this directory.
+
 2. Set the HMAC key to the contents of the key file (not its path):
 
    ```bash
-   export SAGE_PACK_KEY="$(cat hmac.key)"                       # bash
-   $env:SAGE_PACK_KEY = (Get-Content -Raw hmac.key).Trim()      # PowerShell
+   export SAGE_PACK_KEY="$(cat <keys>/hmac.key)"                       # bash
+   $env:SAGE_PACK_KEY = (Get-Content -Raw <keys>\\hmac.key).Trim()      # PowerShell
    ```
 
-3. From inside this directory, run the helper. Pass the contents of the public key file with the
-   `--public-key=` form (keys can start with `-`):
+3. Run the helper. Pass the contents of the public key file with the `--public-key=` form
+   (keys can start with `-`):
 
    ```bash
-   python verify_handoff.py --public-key="$(cat ed25519.public.txt)"                     # bash
-   python verify_handoff.py --public-key="$((Get-Content -Raw ed25519.public.txt).Trim())"  # PowerShell
+   python verify_handoff.py --public-key="$(cat <keys>/ed25519.public.txt)"                       # bash
+   python verify_handoff.py --public-key="$((Get-Content -Raw <keys>\\ed25519.public.txt).Trim())"  # PowerShell
    ```
 
 4. Compare `pinned_key_fingerprint` in the output with the fingerprint you received out of band.
-   It is the SHA-256 of the raw 32-byte key (the urlsafe-base64-decoded file contents).
+   It is the SHA-256 of the raw 32-byte key (the urlsafe-base64-decoded file contents). To compute
+   it independently of the helper:
+
+   ```bash
+   python -c "import base64,hashlib,sys; k=open(sys.argv[1]).read().strip(); print(hashlib.sha256(base64.urlsafe_b64decode(k + '=' * (-len(k) % 4))).hexdigest())" <keys>/ed25519.public.txt
+   ```
 
 Exit codes: `0` evidence, policy, and receipt all verified; `1` integrity, policy, or receipt
 failure (the evidence or kit does not match); `2` setup problem (SAGE or `cryptography` not
