@@ -23,7 +23,7 @@ from sage.audit import (
 )
 from sage.blobs import BlobStore, DEFAULT_THRESHOLD, DeferredSyncStore, offload_span
 from sage.errors import ChainIntegrityError, FaultRecoveryError, JournalWriteError, SageError
-from sage.locks import replace_file
+from sage.locks import read_text_file, replace_file
 from sage.fault import CrashBoundary, RecoveryReport
 from sage.schema import AuditBlock, BundleSource, IncidentBundle, SCHEMA_VERSION, SageSpan, utc_now
 
@@ -868,7 +868,7 @@ def _verify_journal(directory: str | Path, *, allow_live: bool) -> dict[str, Any
         recovered = recover_manifest_from_wal(root)
         if recovered is None:
             raise ChainIntegrityError(f"missing manifest and empty WAL under {root}")
-    manifest = json.loads((root / MANIFEST_NAME).read_text(encoding="utf-8"))
+    manifest = json.loads(read_text_file(root / MANIFEST_NAME))
     live = bool((manifest.get("metadata") or {}).get("live_recording"))
     spans, rejected = load_spans_jsonl(root / SPANS_JSONL)
     chain, chain_rej = load_jsonl_objects(root / CHAIN_JSONL)
@@ -961,7 +961,7 @@ def load_journal(
     verify: bool = False,
 ) -> IncidentBundle:
     root = journal_root(directory)
-    manifest = json.loads((root / MANIFEST_NAME).read_text(encoding="utf-8"))
+    manifest = json.loads(read_text_file(root / MANIFEST_NAME))
     span_dicts, rejected = load_spans_jsonl(root / SPANS_JSONL)
     chain_dicts, chain_rejected = load_jsonl_objects(root / CHAIN_JSONL)
     rejected += chain_rejected
@@ -1020,7 +1020,7 @@ def load_journal(
 def recover_journal(directory: str | Path) -> RecoveryReport:
     root = journal_root(directory)
     try:
-        manifest = json.loads((root / MANIFEST_NAME).read_text(encoding="utf-8"))
+        manifest = json.loads(read_text_file(root / MANIFEST_NAME))
     except Exception as exc:
         restored = recover_manifest_from_wal(root)
         if restored is None:

@@ -9,6 +9,7 @@ from sage.errors import SplitBrainError
 
 DEFAULT_LOCK_ROOT = Path(".sage") / "locks"
 REPLACE_RETRY_S = 5.0
+RETRY_SHARING_VIOLATIONS = os.name == "nt"
 
 
 def replace_file(src: str | Path, dst: str | Path, *, retry_s: float = REPLACE_RETRY_S) -> None:
@@ -25,7 +26,25 @@ def replace_file(src: str | Path, dst: str | Path, *, retry_s: float = REPLACE_R
             os.replace(src, dst)
             return
         except PermissionError:
-            if os.name != "nt" or time.monotonic() >= deadline:
+            if not RETRY_SHARING_VIOLATIONS or time.monotonic() >= deadline:
+                raise
+            time.sleep(delay)
+            delay = min(delay * 2, 0.05)
+
+
+def read_text_file(path: str | Path, *, retry_s: float = REPLACE_RETRY_S) -> str:
+    """`Path.read_text` that waits out a concurrent `replace_file` on Windows.
+
+    While Windows replaces a file, opening it fails with `PermissionError`. Retries with backoff
+    for up to `retry_s`, then raises the last error. Other platforms read on the first try.
+    """
+    deadline = time.monotonic() + retry_s
+    delay = 0.001
+    while True:
+        try:
+            return Path(path).read_text(encoding="utf-8")
+        except PermissionError:
+            if not RETRY_SHARING_VIOLATIONS or time.monotonic() >= deadline:
                 raise
             time.sleep(delay)
             delay = min(delay * 2, 0.05)
