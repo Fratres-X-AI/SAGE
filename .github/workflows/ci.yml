@@ -52,12 +52,12 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
-      - name: Install (pinned langchain-core)
-        run: pip install -e ".[dev,langchain]" -c constraints/langchain.txt
+      - name: Install (pinned langchain-core + langgraph)
+        run: pip install -e ".[dev,langchain,langgraph]" -c constraints/langgraph.txt
       - name: Record tested dependency set
-        run: pip freeze | grep -iE "langchain|langsmith|pydantic|sage-incident"
-      - name: Real LangChain integration + demo tests
-        run: python -m pytest tests/integration_langchain tests/test_redaction_canaries.py tests/test_handoff_binding.py -q --tb=short
+        run: pip freeze | grep -iE "langchain|langgraph|langsmith|pydantic|sage-incident"
+      - name: Real LangChain / LangGraph integration + demo tests
+        run: python -m pytest tests/integration_langchain tests/integration_langgraph tests/test_redaction_canaries.py tests/test_handoff_binding.py -q --tb=short
       - name: Consultancy demo (all scenarios, both modes)
         run: |
           for s in success tool-error tool-timeout; do
@@ -65,6 +65,29 @@ jobs:
               python examples/consultancy_demo.py --scenario "$s" --mode "$m" --out "demo-runs/$s-$m"
             done
           done
+
+  langchain-version-matrix:
+    # Older langchain-core minors with the pinned LangGraph. Resolved freely (no constraints file);
+    # the pip freeze step records what was tested.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        langchain-core: ["1.6.13", "1.7.7"]
+    env:
+      LANGCHAIN_TRACING_V2: "false"
+      LANGSMITH_TRACING: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]" "langchain-core==${{ matrix.langchain-core }}" "langgraph==1.2.21"
+      - name: Record tested dependency set
+        run: pip freeze | grep -iE "langchain|langgraph|langsmith|pydantic"
+      - name: Real LangChain / LangGraph integration tests
+        run: python -m pytest tests/integration_langchain tests/integration_langgraph -q --tb=short
 
   wheel-recipient:
     runs-on: ubuntu-latest

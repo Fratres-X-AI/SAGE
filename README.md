@@ -118,10 +118,13 @@ with SageRecorder(trace_id="incident-42", framework="langchain") as rec:
 rec.export("incident.sage.json")
 ```
 
-Tested LangChain scope: `langchain-core==1.8.0` on Python 3.12, sequential chains, chat models, and
-tools, sync and async, one callback instance per workflow run. Parallel branches inside one run,
-token streaming, LangGraph, and other framework versions are not validated. Callback errors surface
-to the caller (`raise_error=True`), so start in development or staging.
+The same handler works for LangGraph: pass it in the graph's `config` (`pip install ".[langgraph]"`).
+
+Tested scope: `langchain-core==1.8.0` (also 1.6.13 and 1.7.7) and `langgraph==1.2.21` on Python 3.12.
+That covers chains, chat models, tools, retrievers, streaming, batch, `RunnableParallel`, and LangGraph
+graphs with conditional edges, tool nodes, parallel branches, subgraphs, and interrupt/resume, sync and
+async, one callback instance per workflow. `COMPATIBILITY.md` lists exactly what is and is not
+validated. Callback errors surface to the caller (`raise_error=True`), so start in development or staging.
 
 ## What you get
 

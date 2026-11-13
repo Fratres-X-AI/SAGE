@@ -100,9 +100,9 @@ def test_handler_contract_matches_framework():
     assert isinstance(handler, BaseCallbackHandler)
     assert handler.raise_error is True
     assert handler.run_inline is True
-    for attr in ("ignore_llm", "ignore_chain", "ignore_chat_model", "ignore_agent"):
+    for attr in ("ignore_llm", "ignore_chain", "ignore_chat_model", "ignore_agent", "ignore_retriever"):
         assert getattr(handler, attr) is False
-    for attr in ("ignore_retriever", "ignore_retry", "ignore_custom_event"):
+    for attr in ("ignore_retry", "ignore_custom_event"):
         assert getattr(handler, attr) is True
     assert isinstance(AsyncSageLangChainCallback(trace_id="lc-contract-async"), AsyncCallbackHandler)
 

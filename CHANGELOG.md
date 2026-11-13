@@ -4,6 +4,18 @@
 
 Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fixtures/compat_v2_2_0`).
 
+### LangGraph and wider LangChain coverage
+
+- New optional `[langgraph]` extra (pinned `langgraph==1.2.21`) and `constraints/langgraph.txt`.
+- The LangChain handler now records LangGraph runs: node and step attributes, subgraph parent links,
+  fan-out/fan-in, `ToolNode`, and `interrupt` / `Command(resume=...)`. Interrupted nodes are `cancelled`
+  (not errors) with the interrupt payload in `data["langgraph"]`.
+- Streaming (`stream`/`astream`) keeps one model span and counts chunks in `data["stream"]`; streamed
+  chain inputs are recorded when the run ends.
+- `batch`/`abatch` and `RunnableParallel` are supported under one handler.
+- Retriever runs are recorded as `retrieval` spans with their documents (redacted like other fields).
+- CI runs the integration tests against langchain-core 1.6.13, 1.7.7, and the pinned 1.8.0.
+
 ### Release supply chain
 
 - Every GitHub Action is pinned to a commit SHA; workflows default to read-only tokens.

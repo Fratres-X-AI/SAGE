@@ -56,6 +56,10 @@ def main() -> int:
         fail("RELEASE.md must not hard-code a version in the tag command")
     if re.search(r"^langchain\s*=\s*\[\"langchain-core==\d", pyproject, re.M) is None:
         fail("pyproject.toml [langchain] extra must pin langchain-core exactly")
+    if re.search(r'^langgraph\s*=\s*\[[^\]]*"langgraph==\d', pyproject, re.M) is None:
+        fail("pyproject.toml [langgraph] extra must pin langgraph exactly")
+    if not (ROOT / "constraints" / "langgraph.txt").is_file():
+        fail("missing constraints/langgraph.txt")
 
     required = [
         "THREAT_MODEL.md",

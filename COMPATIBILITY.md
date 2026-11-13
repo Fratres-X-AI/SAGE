@@ -33,12 +33,14 @@ Research surfaces (`sage research *`, attribution training) are **not** under th
 
 | Adapter | Tested against | Scope |
 |---------|----------------|-------|
-| `sage.adapters.langchain_callback` | `langchain-core==1.8.0`, Python 3.12 (CI: Ubuntu) | Sequential chains, chat models, LLMs, tools; `invoke` and `ainvoke`; one handler per run |
+| `sage.adapters.langchain_callback` | `langchain-core==1.8.0` (pinned), also 1.6.13 and 1.7.7; Python 3.12 (CI: Ubuntu) | Chains, chat models, LLMs, tools, retrievers; `invoke`/`ainvoke`, `stream`/`astream`, `batch`/`abatch`, `RunnableParallel`; one handler per workflow |
+| Same handler on LangGraph | `langgraph==1.2.21` with the langchain-core versions above | `StateGraph` nodes, conditional edges, `ToolNode`, fan-out/fan-in, subgraphs, `interrupt` and `Command(resume=...)`, `ainvoke`, `stream(stream_mode="updates")` |
 | CrewAI / AutoGen wrappers, OTel tap | Stand-in objects only | Not validated against the real frameworks |
 
 The core (recorder, journal, pack, verify, CLI) is tested on Ubuntu, Windows, and macOS with
-Python 3.10 and 3.12. That matrix does not extend to the adapters. The full resolved dependency set
-for the LangChain job is in `constraints/langchain.txt`.
+Python 3.10 and 3.12. That matrix does not extend to the adapters. The full resolved dependency sets
+are in `constraints/langchain.txt` and `constraints/langgraph.txt`; the 1.6.13 and 1.7.7 lanes resolve
+freely and print what they tested.
 
 LangChain behavior to know:
 
@@ -48,10 +50,23 @@ LangChain behavior to know:
 - langchain-core gates tool callbacks on `ignore_agent`; the handler keeps it `False`.
 - When an async handler runs under a sync `invoke`, LangChain logs and drops handler exceptions even
   with `raise_error=True`; `assert_complete()` still reports those capture errors.
+- Streaming records one model span. Chunks are counted in `data["stream"]["chunks"]`; the final text
+  is in the span outputs. A streamed chain's inputs are filled in when the run ends.
+- Batch and parallel runs share one handler safely; each run becomes its own span (batch items are
+  separate root spans).
 
-Not validated, and not claimed: parallel branches (`RunnableParallel`, `batch`, `abatch`), streaming
-(`stream`, `astream`, `astream_events`, token callbacks), retrievers, agent action/finish events,
-retry and custom events, LangGraph, real provider SDKs, and langchain-core versions other than 1.8.0.
+LangGraph behavior to know:
+
+- Node spans carry `langgraph.node` and `langgraph.step` attributes; root spans carry
+  `langgraph.thread_id` when a checkpointer thread is configured. Parent links follow LangGraph run ids.
+- An `interrupt()` is recorded on the node span as status `cancelled` with
+  `data["langgraph"] = {"interrupted": true, "interrupts": [...]}`. It is not an error, so the bundle
+  stays `completed`. Interrupt payloads pass through redaction like any other span data.
+- The resumed run (`Command(resume=...)`) is a new root span in the same bundle when the same handler
+  is passed. A `ParentCommand` handoff ends the node span `ok` with `data["langgraph"]["control"]`.
+
+Not validated, and not claimed: `astream_events`, agent action/finish events, retry and custom events,
+real provider SDKs, LangGraph Platform / remote graphs, and versions other than those listed above.
 
 ## Frozen formats (2.0)
 

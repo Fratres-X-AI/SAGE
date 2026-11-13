@@ -43,6 +43,8 @@ dev = ["pytest>=8.0", "build>=1.0", "cryptography>=42"]
 sign = ["cryptography>=42"]
 # Exact version exercised by tests/integration_langchain and the consultancy demo.
 langchain = ["langchain-core==1.8.0"]
+# Exact versions exercised by tests/integration_langgraph.
+langgraph = ["langchain-core==1.8.0", "langgraph==1.2.21"]
 attr = ["numpy>=1.26"]
 train = ["numpy>=1.26", "torch>=2.2"]
 tui = ["textual>=0.80"]

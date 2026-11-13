@@ -1,16 +1,24 @@
 """LangChain callback adapter for SAGE.
 
-Tested against ``langchain-core==1.8.0`` (see the ``langchain`` extra). Supported
-path: sequential ``Runnable`` composition (``|``), chat models, text LLMs and tools,
-via ``invoke``/``ainvoke`` with ``config={"callbacks": [handler]}``.
+Tested against ``langchain-core==1.8.0`` (the ``langchain`` extra) and
+``langgraph==1.2.21`` (the ``langgraph`` extra). Supported, with
+``config={"callbacks": [handler]}``:
+
+- ``Runnable`` composition, chat models, text LLMs, tools and retrievers.
+- ``invoke``/``ainvoke``, ``stream``/``astream`` (chunks are counted on the model
+  span as ``data["stream"]["chunks"]``; no span per token), ``batch``/``abatch`` and
+  ``RunnableParallel`` (concurrent sibling runs under one handler).
+- LangGraph ``StateGraph`` runs: nodes, conditional edges, fan-out/fan-in, subgraphs,
+  and ``interrupt`` / ``Command(resume=...)``. Node spans carry ``langgraph.node`` and
+  ``langgraph.step``. An interrupted node is recorded as ``cancelled`` with
+  ``data["langgraph"]["interrupted"] = True``, not as an error; the resumed run is a
+  new root span in the same bundle.
 
 Callback failures surface (``raise_error = True``): a bug in capture fails the
-workflow instead of silently dropping evidence. Restrict to development/staging
-until production failure handling is agreed. Call ``assert_complete()`` before
+workflow instead of silently dropping evidence. Call ``assert_complete()`` before
 handing off an artifact.
 
-Not validated: parallel branches (``RunnableParallel``/``batch``), streaming token
-events, retrievers, agent action events, retries, custom events, and LangGraph.
+Not validated: agent action events, retries, and custom events.
 """
 
 from __future__ import annotations
@@ -44,6 +52,17 @@ _MAX_DEPTH = 8
 _MAX_REPR = 200
 _SAFE_PARAMS = ("model", "model_name", "temperature", "max_tokens", "top_p", "stop", "_type")
 _ROLE_BY_TYPE = {"human": "user", "ai": "assistant", "system": "system", "tool": "tool"}
+_STREAM_PLACEHOLDER = {"input": ""}
+_LANGGRAPH_METADATA = (("langgraph_node", "langgraph.node"), ("langgraph_step", "langgraph.step"),
+                       ("thread_id", "langgraph.thread_id"))
+
+
+def _graph_control(error: BaseException) -> str | None:
+    """Name of a LangGraph control-flow signal (interrupt, parent command), else None."""
+    for cls in type(error).__mro__:
+        if cls.__name__ == "GraphBubbleUp" and cls.__module__.startswith("langgraph"):
+            return type(error).__name__
+    return None
 
 
 class CaptureIncompleteError(SageError):
@@ -199,6 +218,8 @@ class _SageLangChainCore:
         )
         self._lock = threading.Lock()
         self._run_spans: dict[str, str] = {}
+        self._stream_chunks: dict[str, int] = {}
+        self._streamed_inputs: set[str] = set()
         self._unknown_runs: list[tuple[str, str]] = []
         self._capture_errors: list[tuple[str, str]] = []
         self._capture_exceptions: list[BaseException] = []
@@ -223,7 +244,7 @@ class _SageLangChainCore:
 
     @property
     def ignore_retriever(self) -> bool:
-        return True
+        return False
 
     @property
     def ignore_retry(self) -> bool:
@@ -311,10 +332,17 @@ class _SageLangChainCore:
         tags = kwargs.get("tags")
         if tags:
             attributes["langchain.tags"] = [str(t) for t in tags]
+        metadata = kwargs.get("metadata")
+        if isinstance(metadata, dict):
+            for source, target in _LANGGRAPH_METADATA:
+                if metadata.get(source) is not None:
+                    attributes[target] = _jsonable(metadata[source])
         with self._lock:
             if key in self._run_spans:
                 self._capture_errors.append((event, "DuplicateRunStart"))
                 return
+            if inputs == _STREAM_PLACEHOLDER:
+                self._streamed_inputs.add(key)
             parent_span = self._run_spans.get(str(parent_key)) if parent_key is not None else None
             span = self.recorder.start_span(
                 span_type,
@@ -344,10 +372,46 @@ class _SageLangChainCore:
             if span_id is None:
                 self._unknown_runs.append((event, key))
                 return
-            if error is not None:
+            chunks = self._stream_chunks.pop(key, None)
+            if chunks is not None:
+                data = {**(data or {}), "stream": {"chunks": chunks}}
+            if key in self._streamed_inputs:
+                self._streamed_inputs.discard(key)
+                # Streaming runs start with an empty placeholder; the real input arrives at the end.
+                if "inputs" in kwargs:
+                    final = kwargs["inputs"]
+                    span = next(s for s in self.recorder.bundle.spans if s.span_id == span_id)
+                    span.inputs = _normalize_output(final) if isinstance(final, dict) else {"input": _jsonable(final)}
+            control = _graph_control(error) if error is not None else None
+            if control == "GraphInterrupt":
+                interrupts = [_jsonable(getattr(i, "value", i)) for i in (error.args[0] if error.args else ()) or ()]
+                data = {**(data or {}), "langgraph": {"interrupted": True, "interrupts": interrupts}}
+                self.recorder.end_span(span_id, status="cancelled", data=data)
+            elif control is not None:
+                self.recorder.end_span(span_id, data={**(data or {}), "langgraph": {"control": control}})
+            elif error is not None:
                 self.recorder.end_span(span_id, status="error", error=error, data=data)
             else:
                 self.recorder.end_span(span_id, outputs=outputs, data=data)
+
+    def _new_token(self, kwargs: dict[str, Any]) -> None:
+        key = str(kwargs.get("run_id"))
+        with self._lock:
+            if key not in self._run_spans:
+                if ("on_llm_new_token", key) not in self._unknown_runs:
+                    self._unknown_runs.append(("on_llm_new_token", key))
+                return
+            self._stream_chunks[key] = self._stream_chunks.get(key, 0) + 1
+
+    def _retriever_start(self, serialized: Any, query: Any, kwargs: dict[str, Any]) -> None:
+        name = _resolve_name(serialized, kwargs, "retriever")
+        self._start("on_retriever_start", "retrieval", name, kwargs, inputs={"query": _jsonable(query)},
+                    data={"query": _jsonable(query), "source": name})
+
+    def _retriever_end(self, documents: Any, kwargs: dict[str, Any]) -> None:
+        docs = [_jsonable(d) for d in (documents or [])]
+        self._finish("on_retriever_end", kwargs, outputs={"documents": docs},
+                     data={"documents": docs, "document_count": len(docs)})
 
     def _chain_start(self, serialized: Any, inputs: Any, kwargs: dict[str, Any]) -> None:
         self._start(
@@ -442,6 +506,18 @@ class SageLangChainCallback(_SageLangChainCore, _BaseHandler):
     def on_tool_error(self, error: BaseException, **kwargs: Any) -> None:
         self._guard("on_tool_error", self._error, "on_tool_error", error, kwargs)
 
+    def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
+        self._guard("on_llm_new_token", self._new_token, kwargs)
+
+    def on_retriever_start(self, serialized: dict[str, Any], query: str, **kwargs: Any) -> None:
+        self._guard("on_retriever_start", self._retriever_start, serialized, query, kwargs)
+
+    def on_retriever_end(self, documents: Any, **kwargs: Any) -> None:
+        self._guard("on_retriever_end", self._retriever_end, documents, kwargs)
+
+    def on_retriever_error(self, error: BaseException, **kwargs: Any) -> None:
+        self._guard("on_retriever_error", self._error, "on_retriever_error", error, kwargs)
+
 
 class AsyncSageLangChainCallback(_SageLangChainCore, _AsyncBaseHandler):
     """Async variant of :class:`SageLangChainCallback` for ``ainvoke`` call paths.
@@ -481,6 +557,18 @@ class AsyncSageLangChainCallback(_SageLangChainCore, _AsyncBaseHandler):
 
     async def on_tool_error(self, error: BaseException, **kwargs: Any) -> None:
         self._guard("on_tool_error", self._error, "on_tool_error", error, kwargs)
+
+    async def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
+        self._guard("on_llm_new_token", self._new_token, kwargs)
+
+    async def on_retriever_start(self, serialized: dict[str, Any], query: str, **kwargs: Any) -> None:
+        self._guard("on_retriever_start", self._retriever_start, serialized, query, kwargs)
+
+    async def on_retriever_end(self, documents: Any, **kwargs: Any) -> None:
+        self._guard("on_retriever_end", self._retriever_end, documents, kwargs)
+
+    async def on_retriever_error(self, error: BaseException, **kwargs: Any) -> None:
+        self._guard("on_retriever_error", self._error, "on_retriever_error", error, kwargs)
 
 
 def attach_langchain_callback(
