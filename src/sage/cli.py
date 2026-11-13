@@ -220,7 +220,7 @@ def _cmd_key_fingerprint(args: argparse.Namespace) -> int:
         material = Path(args.file).read_text(encoding="utf-8")
         fingerprint = public_key_fingerprint(material)
     except (OSError, ValueError) as exc:
-        return _fail(str(exc))
+        return _fail(str(exc), 2)
     print(json.dumps({"alg": "ed25519", "fingerprint_sha256": fingerprint, "file": str(args.file)}, indent=2))
     return 0
 
@@ -430,7 +430,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     keygen = sub.add_parser(
         "keygen",
-        help="Generate Ed25519 keypair (requires: pip install -e '.[sign]')",
+        help="Generate Ed25519 keypair (requires the [sign] extra: pip install \"<wheel>[sign]\" or pip install cryptography)",
     )
     keygen.add_argument("--out", required=True, help="Output JSON path (keep private)")
     keygen.set_defaults(func=_cmd_keygen)

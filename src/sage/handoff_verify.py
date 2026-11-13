@@ -54,7 +54,8 @@ def _sign_hint() -> str:
 def main(argv: list[str] | None = None, *, kit_required: bool = False) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("kit", nargs=None if kit_required else "?", default=None,
-                        help="kit directory (default: the directory holding this script)")
+                        help="kit directory" if kit_required
+                        else "kit directory (default: the directory holding this script)")
     parser.add_argument("--hmac-key-file", default=None, help="file holding the HMAC key (else SAGE_PACK_KEY)")
     parser.add_argument("--public-key-file", default=None,
                         help="file holding the pinned Ed25519 public key (else --public-key / SAGE_SIGN_PUBLIC_KEY)")

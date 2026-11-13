@@ -87,6 +87,22 @@ def test_key_files_verify_and_fingerprint_command_agrees(signed_kit) -> None:
     assert fp["fingerprint_sha256"] == out["pinned_key_fingerprint"] == expected
 
 
+def test_key_fingerprint_missing_file_is_setup_exit(tmp_path) -> None:
+    proc = subprocess.run(
+        [sys.executable, "-m", "sage.cli", "key", "fingerprint", str(tmp_path / "absent.txt")],
+        capture_output=True, text=True,
+    )
+    assert proc.returncode == 2
+
+
+def test_handoff_md_documents_pyz_and_mismatch() -> None:
+    from sage.handoff import HANDOFF_MD
+
+    assert "sage-verify-<version>.pyz" in HANDOFF_MD
+    assert "If the fingerprints differ, stop" in HANDOFF_MD
+    assert "`--public-key-file` is needed when" in HANDOFF_MD
+
+
 @needs_crypto
 def test_sage_handoff_verify_subcommand(signed_kit) -> None:
     kit, keys, _kp = signed_kit

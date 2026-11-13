@@ -58,6 +58,20 @@ HMAC, while only the holder of the signing private key can produce a valid signa
    python -m pip install "<path to>/sage_incident_bundles-<version>-py3-none-any.whl[sign]"
    ```
 
+   If PowerShell blocks `Activate.ps1`, run `Set-ExecutionPolicy -Scope Process RemoteSigned`
+   first, or skip activation and call `sage-venv\\Scripts\\python.exe` directly.
+
+   If you cannot install packages, use the single-file verifier `sage-verify-<version>.pyz` instead
+   (published with each SAGE release). It needs only Python 3.10 or newer, checks signatures
+   without `cryptography`, and takes the same options with the kit directory first:
+
+   ```bash
+   python sage-verify-<version>.pyz <this directory> --hmac-key-file <keys>/hmac.key --public-key-file <keys>/ed25519.public.txt
+   ```
+
+   Only the wheel paths (`verify_handoff.py` and `sage handoff verify`) need `cryptography`, and
+   only when the policy requires a signature.
+
    `<keys>` below is wherever you saved the key files you received separately (they are not in
    this directory).
 
@@ -67,6 +81,9 @@ HMAC, while only the holder of the signing private key can produce a valid signa
    ```bash
    python verify_handoff.py --hmac-key-file <keys>/hmac.key --public-key-file <keys>/ed25519.public.txt
    ```
+
+   - `--hmac-key-file` is needed when `policy.json` sets `require_pack_hmac` or `require_witness_hmac`.
+   - `--public-key-file` is needed when `policy.json` sets `require_pack_signature`.
 
    With SAGE 2.3 or newer installed, `sage handoff verify <this directory> --hmac-key-file ...
    --public-key-file ...` does the same from anywhere. The keys can also come from the
@@ -81,6 +98,9 @@ HMAC, while only the holder of the signing private key can produce a valid signa
    python -c "import base64,hashlib,sys; k=open(sys.argv[1]).read().strip(); print(hashlib.sha256(base64.urlsafe_b64decode(k + '=' * (-len(k) % 4))).hexdigest())" <keys>/ed25519.public.txt
    ```
 
+   If the fingerprints differ, stop. Do not trust the kit, even if the helper reported `ok`.
+   Contact the producer through the trusted channel.
+
 On failure, `error_type` names what failed: `SignatureMismatchError` (signature missing or made with
 a different key), `ReceiptMismatchError` (receipt altered or for another pack or policy),
 `PolicyViolationError` (evidence breaks the policy), or `ChainIntegrityError` / `BlobIntegrityError`
@@ -88,7 +108,9 @@ a different key), `ReceiptMismatchError` (receipt altered or for another pack or
 
 Exit codes: `0` evidence, policy, and receipt all verified; `1` integrity, policy, or receipt
 failure (the evidence or kit does not match); `2` setup problem (SAGE or `cryptography` not
-installed, required key not provided, key file unreadable, kit file missing).
+installed, required key not provided, key file unreadable, kit file missing). The `.pyz` uses the
+same codes. `sage key fingerprint` exits `0` on success and `2` when the key file is missing or
+not a valid key.
 """
 
 
