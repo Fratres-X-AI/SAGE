@@ -29,3 +29,5 @@ keys.ring.json
 .hypothesis/
 fuzz/corpus/
 fuzz/crashes/
+
+.p7tmp/

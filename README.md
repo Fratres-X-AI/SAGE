@@ -123,6 +123,50 @@ graphs with conditional edges, tool nodes, parallel branches, subgraphs, and int
 async, one callback instance per workflow. `COMPATIBILITY.md` lists exactly what is and is not
 validated. Callback errors surface to the caller (`raise_error=True`), so start in development or staging.
 
+OpenAI Agents SDK (`pip install -e ".[openai-agents]"`, tested with `openai-agents==0.24.0`):
+
+```python
+from agents import Runner, set_trace_processors
+from sage.adapters.openai_agents import SageOpenAIAgentsProcessor
+
+processor = SageOpenAIAgentsProcessor(trace_id="incident-42", journal_dir="run.journal")
+set_trace_processors([processor])          # add_trace_processor(...) keeps the OpenAI exporter too
+with processor:
+    Runner.run_sync(agent, "Where is order 42?")
+processor.assert_complete()
+processor.export("incident.sage.json")
+```
+
+Agents, model calls, tool calls, handoffs, guardrails, and the SDK's task/turn spans become SAGE spans
+nested as the SDK nested them.
+
+PydanticAI (`pip install -e ".[pydantic-ai]"`, tested with `pydantic-ai-slim==2.68.0`):
+
+```python
+from sage.adapters.pydantic_ai import SagePydanticAI
+
+sage = SagePydanticAI(trace_id="incident-42", journal_dir="run.journal")
+agent = sage.instrument(agent)             # or sage.instrument_all()
+with sage:
+    agent.run_sync("Where is order 42?")
+sage.assert_complete()
+sage.export("incident.sage.json")
+```
+
+It reads PydanticAI's OpenTelemetry spans (`invoke_agent`, `chat`, `execute_tool`) through a private
+tracer provider; nothing is sent to an external exporter.
+
+Existing OpenTelemetry traces (OTLP JSON, JSON Lines, or protobuf with `pip install -e ".[otlp]"`):
+
+```bash
+sage import traces.pb --format otlp --out incident.sage.json
+sage verify incident.sage.json
+```
+
+OpenInference (`llm.*`, `tool.*`, `retrieval.documents.*`) and GenAI (`gen_ai.*`) attributes become
+typed span data. Tested against exports from `opentelemetry-sdk==1.45.2`. See `COMPATIBILITY.md` for
+what each adapter covers and what is not validated.
+
 ## Live journal durability
 
 Pass `journal_dir=` to write a crash-recoverable journal while the run is in progress. Closed spans
@@ -145,7 +189,8 @@ with SageRecorder(trace_id="incident-42", journal_dir="run.journal", journal_dur
   bounded: once 4 × `journal_batch_max_spans` spans (1,024 by default) are uncommitted, `end_span`
   waits for the disk. When the disk is slow, the window stretches in time but not past that count.
 - `SAGE_JOURNAL_DURABILITY=span|batch|close` sets the mode when the argument is not given. The
-  adapters (`SageLangChainCallback`, `wrap_agent_run`, `attach_otel_tap`, `instrument`, `wrap_run`)
+  adapters (`SageLangChainCallback`, `SageOpenAIAgentsProcessor`, `SagePydanticAI`, `wrap_agent_run`,
+  `attach_otel_tap`, `instrument`, `wrap_run`)
   accept `journal_durability=` too.
 - Sealing (leaving the `with` block, `finalize()`, `export()`) always flushes, fsyncs, and stops the
   writer thread. A write failure on the writer thread is raised as `JournalWriteError` from the next
@@ -176,7 +221,7 @@ for Linux and Windows. These are measurements, not a service-level commitment.
 | **Verify** | Policies, blob inventory, witness, receipts |
 | **Signatures** | Optional Ed25519 — **pinned key required** (TOFU refused) |
 | **Handoff** | Offline auditor kit (`sage handoff`) |
-| **Adapters** | LangChain callback (tested against real `langchain-core`); CrewAI/AutoGen wrappers and OTel tap are unit-tested only |
+| **Adapters** | LangChain callback, OpenAI Agents SDK processor, PydanticAI (tested against the pinned real packages); OTLP / OpenInference import; CrewAI/AutoGen wrappers are unit-tested only |
 
 Formats are frozen under the [2.x compatibility covenant](COMPATIBILITY.md).
 
@@ -197,6 +242,9 @@ SAGE is not published on PyPI. Install from a checkout or from a wheel you were 
 ```bash
 pip install -e ".[dev]"            # checkout: core + tests + cryptography
 pip install -e ".[langchain]"      # pinned langchain-core for the callback adapter
+pip install -e ".[openai-agents]"  # pinned openai-agents for the tracing processor
+pip install -e ".[pydantic-ai]"    # pinned pydantic-ai-slim + opentelemetry-sdk
+pip install -e ".[otlp]"           # pinned opentelemetry-proto for binary OTLP import
 pip install -e ".[sign]"           # Ed25519 only
 pip install -e ".[tui]"            # optional inspect TUI
 

@@ -60,6 +60,20 @@ def main() -> int:
         fail("pyproject.toml [langgraph] extra must pin langgraph exactly")
     if not (ROOT / "constraints" / "langgraph.txt").is_file():
         fail("missing constraints/langgraph.txt")
+    for extra, package in (
+        ("otlp", "opentelemetry-proto"),
+        ("openai-agents", "openai-agents"),
+        ("pydantic-ai", "pydantic-ai-slim"),
+        ("pydantic-ai", "opentelemetry-sdk"),
+    ):
+        pin = re.search(rf'^{re.escape(extra)}\s*=\s*\[[^\]]*"{re.escape(package)}==(\d[^"]*)"', pyproject, re.M)
+        if pin is None:
+            fail(f"pyproject.toml [{extra}] extra must pin {package} exactly")
+        constraints = ROOT / "constraints" / "otel-agents.txt"
+        if not constraints.is_file():
+            fail("missing constraints/otel-agents.txt")
+        if f"{package}=={pin.group(1)}" not in constraints.read_text(encoding="utf-8").splitlines():
+            fail(f"constraints/otel-agents.txt must pin {package}=={pin.group(1)} like the [{extra}] extra")
 
     required = [
         "THREAT_MODEL.md",

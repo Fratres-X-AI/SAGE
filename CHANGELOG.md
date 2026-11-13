@@ -32,6 +32,33 @@ Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fix
   fail (`PermissionError` from `os.replace`), which stopped the background writer. Journal, bundle,
   and blob writes now retry the replace for up to 5 seconds while a reader has the file open.
 
+### OpenTelemetry import and new framework adapters
+
+- New `sage.importers.otlp` (`load_otlp_file`, `import_otlp`) and `sage import <file> --format otlp`.
+  It reads OTLP JSON in both encodings seen in practice (spec / Collector style with hex ids and integer
+  enums, and protobuf `MessageToDict` output with base64 ids, enum names and int64 strings), JSON Lines,
+  and binary `ExportTraceServiceRequest` protobuf. Protobuf needs the new `[otlp]` extra
+  (`opentelemetry-proto==1.45.2`). Imported bundles are sealed and pass `sage verify`.
+- The OpenInference importer now fills typed span data from OpenInference attributes
+  (`llm.model_name`, `llm.invocation_parameters`, flattened `llm.input_messages.*` /
+  `llm.output_messages.*`, `llm.token_count.*`, `tool.name`, `retrieval.documents.*`) and from GenAI
+  attributes (`gen_ai.request.model`, `gen_ai.input.messages`, `gen_ai.usage.*`, `gen_ai.tool.*`,
+  `gen_ai.agent.name`). `exception` events become span errors.
+- Fixed: importing an OTLP span without `openinference.span.kind` raised `ValueError`, because the OTel
+  span kind (`1`, `SPAN_KIND_INTERNAL`) was read as a SAGE span type. Unknown OpenInference kinds now
+  map to `custom` instead of failing.
+- New `sage.adapters.openai_agents.SageOpenAIAgentsProcessor`, an OpenAI Agents SDK tracing processor
+  (`[openai-agents]` extra, `openai-agents==0.24.0`). Tested with real `Runner.run` / `run_sync` runs and
+  an offline model: tool calls, a handoff between two agents, a guardrail tripwire, tool and model
+  exceptions, and span nesting.
+- New `sage.adapters.pydantic_ai.SagePydanticAI` (`[pydantic-ai]` extra, `pydantic-ai-slim==2.68.0`
+  with `opentelemetry-sdk==1.45.2`). It records PydanticAI's OpenTelemetry spans through a private
+  tracer provider. Tested with `TestModel` and `FunctionModel`: tool calls, structured output, tool
+  retries, output-validation retries, and a tool exception.
+- Both adapters import without their extras and raise an install hint when constructed.
+- `constraints/otel-agents.txt` and a CI job (`otel-agents-integration`). `release_check.py` checks the
+  new exact pins.
+
 
 ### Recipient experience
 

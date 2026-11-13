@@ -66,6 +66,25 @@ jobs:
             done
           done
 
+  otel-agents-integration:
+    # OTLP protobuf import, OpenAI Agents SDK and PydanticAI adapters. Separate from the LangGraph
+    # job: openai-agents 0.24.0 needs websockets<17, constraints/langgraph.txt pins 17.4.
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_AGENTS_DISABLE_TRACING: "false"
+      LOGFIRE_SEND_TO_LOGFIRE: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install (pinned opentelemetry-proto + openai-agents + pydantic-ai-slim)
+        run: pip install -e ".[dev,otlp,openai-agents,pydantic-ai]" "opentelemetry-exporter-otlp-proto-common==1.45.2" -c constraints/otel-agents.txt
+      - name: Record tested dependency set
+        run: pip freeze | grep -iE "opentelemetry|protobuf|openai|pydantic|websockets|sage-incident"
+      - name: Real OTLP / OpenAI Agents / PydanticAI integration tests
+        run: python -m pytest tests/integration_otlp tests/integration_openai_agents tests/integration_pydantic_ai tests/test_otlp_import.py tests/test_adapters_optional_deps.py -q --tb=short
+
   langchain-version-matrix:
     # Older langchain-core minors with the pinned LangGraph. Resolved freely (no constraints file);
     # the pip freeze step records what was tested.
