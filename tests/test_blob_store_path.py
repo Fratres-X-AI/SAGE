@@ -121,3 +121,16 @@ def test_unpacked_journal_round_trip(tmp_path: Path, monkeypatch: pytest.MonkeyP
     pack = pack_artifact(journal, tmp_path / "e.sage.tar.gz", hmac_key=b"k" * 32)
     out = unpack_artifact(pack, tmp_path / "unpacked", hmac_key=b"k" * 32)
     assert load_bundle(out, verify=True).audit.bundle_hash
+
+
+def test_unpack_does_not_record_the_receivers_absolute_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    work = tmp_path / "work"
+    work.mkdir()
+    monkeypatch.chdir(work)
+    _bundle, journal = _record(tmp_path, tmp_path / "blobs", name="unpackpath")
+    pack = pack_artifact(journal, tmp_path / "u.sage.tar.gz", hmac_key=b"k" * 32)
+    out = unpack_artifact(pack, tmp_path / "receiver", hmac_key=b"k" * 32)
+    manifest = (out / "manifest.sage.json").read_text(encoding="utf-8")
+    assert _absolute_strings(manifest) == []
+    repacked = pack_artifact(out, tmp_path / "again.sage.tar.gz", hmac_key=b"k" * 32)
+    assert verify_artifact(repacked, hmac_key=b"k" * 32)["ok"]

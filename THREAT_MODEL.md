@@ -71,8 +71,8 @@ Fail-closed exit codes: `0` ok · `1` integrity/policy · `2` recoverable fault.
 
 - Secrets exist in memory until span close (sanitize-on-close mitigates after end).
 - Unpack rewrites local `blob_store` metadata → local seal hash may differ; custody uses pack `bundle_hash`.
-  That rewrite is an absolute path on the receiver's machine; re-packing an unpacked journal carries
-  it forward (`sage scan` reports it as `local_path`).
+  The rewrite records the blob root relative to the working directory, or omits it, never as an
+  absolute path. Journals unpacked by 2.2 can still carry one; `sage scan` reports it as `local_path`.
 - Bundles sealed by SAGE 2.2 and earlier hold the producer's absolute blob store path in
   `metadata.blob_store`. It cannot be removed without breaking their hashes.
 - Torn JSONL requires recovery, not verify.

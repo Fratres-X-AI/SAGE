@@ -9,7 +9,7 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-from sage.blobs import BLOB_MARKER, BlobStore, is_blob_ref, require_digest
+from sage.blobs import BLOB_MARKER, BlobStore, _record_blob_store, is_blob_ref, require_digest
 from sage.bundle_io import load_bundle
 from sage.errors import ChainIntegrityError, SignatureMismatchError
 from sage.journal import load_jsonl_objects, save_journal
@@ -446,7 +446,7 @@ def _materialize_unpacked(
         custody_hash = bundle.audit.bundle_hash
     elif verify_attestation:
         _check_pack_anchors(meta, bundle, journal)
-    bundle.metadata["blob_store"] = str(store.root)
+    _record_blob_store(bundle.metadata, bundle.bundle_id, store)
     bundle.metadata["pack_bundle_hash"] = custody_hash
     save_journal(bundle, journal)
     if write_witness:
@@ -551,7 +551,7 @@ def unpack_artifact(
 
         final_journal = dest / "sage_artifact" / "journal"
         bundle = load_bundle(final_journal, verify=True, rehydrate=False)
-        bundle.metadata["blob_store"] = str(final_blobs)
+        _record_blob_store(bundle.metadata, bundle.bundle_id, BlobStore(final_blobs))
         save_journal(bundle, final_journal)
         return final_journal
 
