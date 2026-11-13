@@ -4,6 +4,7 @@
 
 Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fixtures/compat_v2_2_0`).
 
+
 ### Recipient experience
 
 - New error types `SignatureMismatchError`, `ReceiptMismatchError`, and `PolicyViolationError`. They
@@ -43,6 +44,35 @@ Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fix
 - OpenSSF Scorecard and dependency-review workflows; `SECURITY.md` now states response targets.
 - `release_check.py` fails when a document title carries a stale `(vX.Y)` stamp.
 - `THREAT_MODEL.md` adds receipt substitution, policy downgrade, and release tampering.
+
+### Journal durability modes and faster recording
+
+- New `SageRecorder(journal_durability=...)`: `"span"` (fsync per closed span, the previous behaviour),
+  `"batch"` (group commit from a background writer thread; **new default**), `"close"` (fsync only at
+  `flush_journal()` or the seal). `SAGE_JOURNAL_DURABILITY` sets the mode when the argument is omitted.
+- Loss window on a crash. `span`: nothing that was closed. `batch`: spans closed in the last 50 ms or
+  the last 256 spans (`journal_batch_interval_ms`, `journal_batch_max_spans`), plus the commit under way;
+  never more than 1,024 uncommitted spans, because `end_span` then waits for the disk. `close`: as
+  `batch` for a process crash; anything since the last flush for an operating-system crash or power loss.
+- **Behaviour change:** with the default mode, a span is no longer on disk when `end_span` returns.
+  Call `rec.flush_journal()` before reading a live journal, or pass `journal_durability="span"`.
+- Sealing always flushes, fsyncs, and joins the writer thread. A writer-thread failure is raised as
+  `sage.errors.JournalWriteError` from the next `end_span`, `flush_journal()`, or the seal.
+- New `SageRecorder.flush_journal()` and `close_journal()`. The adapters and `sage.sdk` helpers accept
+  `journal_durability=`.
+- The live manifest is replaced once per commit instead of once per span, and its WAL gets one record
+  per commit. Record formats are byte-compatible; hashes are identical in every mode
+  (`tests/test_recording_hash_stability.py` pins them against the previous recorder).
+- Offloaded blobs are fsynced in groups in `batch` / `close` mode, before the journal lines that name
+  them. A blob gets its content-address name only after its fsync.
+- Recording fast path: redaction patterns are compiled once, sensitive-key checks are cached, spans are
+  serialized once for the content hash and the journal line, sanitizing no longer deep-copies the span,
+  duplicate payloads within a span are stored once, the blob store no longer resolves real paths on
+  every access, and span lookup is by id instead of a scan.
+- `scripts/measure_overhead.py`: `--durability {span,batch,close,all}` and `--mode journal`, a per-span
+  benchmark swept over payload sizes, JSON output. CI runs it on Linux (`journal-benchmark` artifact).
+  The numbers are measurements, not an SLA.
+
 
 ### Redaction coverage
 

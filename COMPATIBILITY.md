@@ -68,6 +68,10 @@ LangGraph behavior to know:
 Not validated, and not claimed: `astream_events`, agent action/finish events, retry and custom events,
 real provider SDKs, LangGraph Platform / remote graphs, and versions other than those listed above.
 
+Live-journal durability (`journal_durability="span" | "batch" | "close"`, default `"batch"` since
+2.3.0) changes when records are fsynced, not what is written. `sage.journal.v1` is unchanged; a live
+journal holds the same lines and the same hashes in every mode.
+
 ## Frozen formats (2.0)
 
 | Format ID | Meaning |
