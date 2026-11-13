@@ -52,7 +52,9 @@ def verify_blob_inventory(
     """Fail-closed: every CAS ref present and content-addressed (streaming verify)."""
     digests = sorted(collect_bundle_blob_digests(bundle))
     meta = bundle.metadata or {}
-    root = blob_root or meta.get("blob_store")
+    from sage.blobs import resolve_blob_root
+
+    root = blob_root or resolve_blob_root({"bundle_id": bundle.bundle_id, "metadata": meta})
     if not digests:
         return {"ok": True, "blob_count": 0, "blob_merkle": merkle_root([]), "verified": []}
     if not root:

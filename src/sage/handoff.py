@@ -5,6 +5,8 @@ import json
 import os
 import shutil
 import uuid
+import warnings
+from collections.abc import Callable
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -18,6 +20,14 @@ from sage.verify import verify_artifact
 
 class HandoffSetupError(SageError):
     """Handoff cannot be built as requested (missing key material, existing kit, bad input)."""
+
+
+class HandoffLeakError(SageError):
+    """The pre-share leak scan found possible secrets and ``fail_on_findings`` was set."""
+
+
+class HandoffLeakWarning(UserWarning):
+    """The pre-share leak scan found possible secrets; the kit was still built."""
 
 
 HANDOFF_MD = """# SAGE Evidence Handoff
@@ -139,6 +149,32 @@ def _resolve_handoff_policy(
     return pol
 
 
+def _leak_check(
+    pack_path: Path,
+    *,
+    fail_on_findings: bool,
+    on_findings: Callable[[Any], None] | None,
+) -> None:
+    from sage.scan import scan_path
+
+    report = scan_path(pack_path)
+    if report.ok:
+        return
+    if fail_on_findings:
+        raise HandoffLeakError(
+            f"pre-share leak scan: {report.summary()}; handoff not built. "
+            "Run `sage scan` on the source for locations (values are never printed)."
+        )
+    if on_findings is not None:
+        on_findings(report)
+    else:
+        warnings.warn(
+            f"pre-share leak scan: {report.summary()}. Run `sage scan` on the kit's pack for locations.",
+            HandoffLeakWarning,
+            stacklevel=3,
+        )
+
+
 def create_handoff(
     path: str | Path,
     out_dir: str | Path,
@@ -151,12 +187,20 @@ def create_handoff(
     sign: bool | None = None,
     private_key: str | None = None,
     overwrite: bool = False,
+    blob_root: str | Path | None = None,
+    scan: bool = True,
+    fail_on_findings: bool = False,
+    on_scan_findings: Callable[[Any], None] | None = None,
 ) -> Path:
     """Build an offline evidence handoff directory from a bundle, journal, or pack.
 
     An explicit ``policy`` is enforced as given; it is never weakened to fit missing keys.
     The kit is assembled in a staging directory and promoted only after verification and
     receipt generation succeed.
+
+    The pack is run through `sage.scan.scan_path` first. Findings call ``on_scan_findings``
+    with the `ScanReport` (default: a `HandoffLeakWarning`), or raise `HandoffLeakError` when
+    ``fail_on_findings`` is set. Neither ever includes the values found.
     """
     dest = Path(out_dir)
     if dest.exists() and any(dest.iterdir()):
@@ -193,7 +237,10 @@ def create_handoff(
                 key_id=key_id,
                 sign=want_sign,
                 private_key=private_key,
+                blob_store=blob_root,
             )
+        if scan:
+            _leak_check(pack_path, fail_on_findings=fail_on_findings, on_findings=on_scan_findings)
         (staging / "policy.json").write_text(
             json.dumps(pol.to_dict(), indent=2, sort_keys=True),
             encoding="utf-8",

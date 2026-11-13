@@ -237,13 +237,15 @@ def pack_artifact(
 
     key = hmac_key if hmac_key is not None else os.environ.get("SAGE_PACK_KEY")
 
+    from sage.blobs import resolve_blob_root
+
     bundle = load_bundle(src, verify=True, rehydrate=False)
     digests = collect_bundle_blob_digests(bundle)
     meta = bundle.metadata or {}
     store = (
         blob_store
         if isinstance(blob_store, BlobStore)
-        else BlobStore(blob_store or meta.get("blob_store"))
+        else BlobStore(blob_store or resolve_blob_root({"bundle_id": bundle.bundle_id, "metadata": meta}))
     )
 
     with tempfile.TemporaryDirectory(prefix="sage-pack-") as tmp:

@@ -152,6 +152,31 @@ def test_redaction_keeps_useful_nonsecret_context(tmp_path: Path) -> None:
     assert "tool failed with" in (tool.failure_context or "")
 
 
+def test_all_detectors_on_still_scrub_canaries_and_keep_context(tmp_path: Path) -> None:
+    """Detector cases live in test_redaction_detectors.py; this checks them on the canary run."""
+    policy = {**CUSTOM_POLICY, "detectors": ["all"]}
+    rec, journal = _record_canary_run(tmp_path, policy=policy)
+    bundle = rec.finalize()
+    blob = json.dumps(bundle.to_dict())
+    _assert_no_canary(blob, "finalized bundle with detectors")
+    _assert_no_canary(_read_tree(journal), "journal directory with detectors")
+    for context in ("Where is my order 42?", "Fictional Co", "deterministic-test-model", "Order 42 shipped."):
+        assert context in blob, f"detectors removed non-secret context {context!r}"
+    assert bundle.redaction_policy["detectors"]
+
+
+def test_flattened_token_counts_survive_recording(tmp_path: Path) -> None:
+    rec = SageRecorder(title="counts", trace_id="counts-trace", journal_dir=tmp_path / "j", blob_store=tmp_path / "b")
+    with rec:
+        with rec.llm_call("m", inputs={"prompt": "hi"}) as llm:
+            llm.span.attributes.update({"llm.token_count.prompt": 3, "llm.token_count.completion": 5})
+            llm.span.data["usage"] = {"input_tokens": 3, "input_tokens_details": {"cached_tokens": 1}}
+            llm.set_output(text="ok")
+    span = rec.finalize().spans[0]
+    assert span.attributes["llm.token_count.prompt"] == 3
+    assert span.data["usage"]["input_tokens_details"] == {"cached_tokens": 1}
+
+
 def test_token_count_keys_are_not_over_redacted() -> None:
     span = SageSpan(
         type="llm",

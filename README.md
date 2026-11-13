@@ -230,7 +230,7 @@ Formats are frozen under the [2.x compatibility covenant](COMPATIBILITY.md).
 - Does **not** prove the agent / LLM / tools told the truth  
 - Does **not** guarantee complete capture of arbitrary applications; only instrumented work is recorded  
 - Does **not** diagnose root cause automatically  
-- Redaction applies configured key and pattern rules; it does **not** detect every kind of sensitive data  
+- Redaction applies configured key and pattern rules (plus opt-in shape detectors), and `sage scan` checks a pack before you share it; neither detects every kind of sensitive data. See [docs/REDACTION.md](docs/REDACTION.md)  
 - Software HMAC/Ed25519 ≠ HSM identity — see [THREAT_MODEL.md](THREAT_MODEL.md)  
 - Not a legal-admissibility or regulatory-compliance claim  
 - Research (`sage research *`) is **not** forensic custody
@@ -270,6 +270,7 @@ CI: Ubuntu · Windows · macOS × Python 3.10 / 3.12.
 |-----|---------|
 | [VERIFY_RUNBOOK.md](docs/VERIFY_RUNBOOK.md) | Record → ship → auditor re-verify |
 | [AUDITOR_KIT.md](docs/AUDITOR_KIT.md) | Pinned-signature verify posture |
+| [REDACTION.md](docs/REDACTION.md) | Redaction rules, opt-in detectors, `sage scan` pre-share check |
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Assets, adversaries, non-goals |
 | [FORMAT.md](docs/spec/FORMAT.md) | Normative artifact spec; conformance vectors in `tests/vectors/` |
 | [SECURITY.md](SECURITY.md) | Supported versions / reporting |

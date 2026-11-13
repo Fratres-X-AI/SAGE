@@ -54,9 +54,8 @@ OTLP import behavior to know:
   `otel.span_kind`; the OTel trace id as `otel.trace_id` and in `bundle.metadata["otel_trace_ids"]`.
 - Span ids are stored as 16-digit lowercase hex whether the input used hex or base64.
 - Token counts are copied to `data["usage"]` as `prompt_tokens` / `completion_tokens` / `total_tokens`
-  (OpenInference) or `input_tokens` / `output_tokens` (GenAI). The raw `llm.token_count.*` attributes are
-  replaced by `[REDACTED]` at the seal, because the default redaction treats any key containing
-  `token` as sensitive.
+  (OpenInference) or `input_tokens` / `output_tokens` (GenAI). The raw `llm.token_count.*` attributes
+  are kept too while their values are numbers (before 2.3.0rc1 they were replaced by `[REDACTED]`).
 - An `exception` event becomes the span error (type, message, stack with directory names cut).
 - Not supported: compressed exports (gzip/zstd files), OTLP logs and metrics, span links, resource
   attributes such as `service.name` (the instrumentation scope is kept per span). Duplicate span

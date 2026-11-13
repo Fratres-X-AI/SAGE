@@ -76,6 +76,61 @@ def default_blob_root() -> Path:
     return Path.cwd() / DEFAULT_BLOB_ROOT
 
 
+# bundle_id -> blob root used when the bundle was sealed in this process. Kept out of the bundle
+# so sealed evidence never carries the producer's absolute paths.
+_SEALED_BLOB_ROOTS: dict[str, Path] = {}
+_SEALED_BLOB_ROOTS_MAX = 4096
+
+
+def blob_store_hint(root: str | Path) -> str | None:
+    """Portable `metadata.blob_store` value: the root relative to the working directory, or None.
+
+    An absolute path would leak the producer's user name and directory layout into shared
+    evidence, so a root outside the working directory is not recorded at all.
+    """
+    try:
+        rel = Path(root).resolve().relative_to(Path.cwd().resolve())
+    except (OSError, ValueError):
+        return None
+    return rel.as_posix() or "."
+
+
+def remember_blob_root(bundle_id: str | None, root: str | Path) -> None:
+    if not bundle_id:
+        return
+    with _store_locks_guard:
+        _SEALED_BLOB_ROOTS.pop(bundle_id, None)
+        _SEALED_BLOB_ROOTS[bundle_id] = Path(root)
+        while len(_SEALED_BLOB_ROOTS) > _SEALED_BLOB_ROOTS_MAX:
+            _SEALED_BLOB_ROOTS.pop(next(iter(_SEALED_BLOB_ROOTS)))
+
+
+def resolve_blob_root(data: dict[str, Any]) -> Path | None:
+    """Where to read a bundle's blobs when the caller gave no store.
+
+    Order: the root this process sealed the bundle with, then `metadata.blob_store` (relative to
+    the working directory, or an absolute path written by SAGE 2.2 and earlier), then None
+    (the default store).
+    """
+    bundle_id = data.get("bundle_id")
+    if bundle_id:
+        with _store_locks_guard:
+            remembered = _SEALED_BLOB_ROOTS.get(str(bundle_id))
+        if remembered is not None and remembered.is_dir():
+            return remembered
+    hint = (data.get("metadata") or {}).get("blob_store")
+    return Path(hint) if hint else None
+
+
+def _record_blob_store(meta: dict[str, Any], bundle_id: str | None, store: "BlobStore") -> None:
+    remember_blob_root(bundle_id, store.root)
+    hint = blob_store_hint(store.root)
+    if hint is None:
+        meta.pop("blob_store", None)
+    else:
+        meta["blob_store"] = hint
+
+
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -651,7 +706,7 @@ def offload_bundle(
                 for key, child in data.items()
             }
     meta = dict(clone.get("metadata") or {})
-    meta["blob_store"] = str(store.root)
+    _record_blob_store(meta, clone.get("bundle_id"), store)
     meta["blob_threshold"] = threshold
     clone["metadata"] = meta
     return clone
@@ -662,9 +717,7 @@ def rehydrate_bundle_dict(
     store: BlobStore | None = None,
 ) -> dict[str, Any]:
     if store is None:
-        meta = data.get("metadata") or {}
-        root = meta.get("blob_store")
-        store = BlobStore(root) if root else BlobStore()
+        store = BlobStore(resolve_blob_root(data))
     clone = json.loads(json.dumps(data))
     for span in clone.get("spans") or []:
         for field in ("inputs", "outputs", "attributes", "data"):
@@ -718,7 +771,7 @@ def apply_offload_to_incident(
     for span in bundle.spans:
         offload_span(span, store, threshold=threshold)
     meta = dict(bundle.metadata or {})
-    meta["blob_store"] = str(store.root)
+    _record_blob_store(meta, getattr(bundle, "bundle_id", None), store)
     meta["blob_threshold"] = threshold
     bundle.metadata = meta
     return bundle

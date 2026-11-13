@@ -36,6 +36,7 @@ Hashes and HMACs prove **artifact integrity under a key/policy**, not honesty of
 | TOFU signer | Ship self-signed pack that verifies against embedded pubkey | `--require-signature` demands pinned `SAGE_SIGN_PUBLIC_KEY` / key ring |
 | Live-carcass presenter | Pass CI on unsealed journal | `--require-sealed` / policy `forbid_live_journal` |
 | Secret leaker via export | Ship API keys in evidence | Redact-before-hash + sanitize-on-close |
+| Careless sharer | Hand over evidence that still holds a key, personal data, or a local path the redaction policy missed | `sage scan` pre-share check (also run by `sage handoff`; `--fail-on-findings` blocks the kit). Opt-in detectors redact provider keys, JWTs, emails, card numbers, and high-entropy strings before hashing. The scan reports locations and rule ids, never values. It is pattern-based: a secret with no known shape can pass |
 | Split-brain writer | Two owners same `trace_id` | Trace registry + file locks |
 | Receipt substituter | Pass off a receipt from a different pack, key, or policy | Receipt binding: bundle hash and id, policy digest, and `expect_fingerprint` are checked against the freshly verified pack |
 | Policy downgrader | Verify under a weaker policy than the one requested | An explicit policy is never weakened to fit missing key material; missing material raises `HandoffSetupError` (exit 2) |
@@ -70,6 +71,10 @@ Fail-closed exit codes: `0` ok · `1` integrity/policy · `2` recoverable fault.
 
 - Secrets exist in memory until span close (sanitize-on-close mitigates after end).
 - Unpack rewrites local `blob_store` metadata → local seal hash may differ; custody uses pack `bundle_hash`.
+  That rewrite is an absolute path on the receiver's machine; re-packing an unpacked journal carries
+  it forward (`sage scan` reports it as `local_path`).
+- Bundles sealed by SAGE 2.2 and earlier hold the producer's absolute blob store path in
+  `metadata.blob_store`. It cannot be removed without breaking their hashes.
 - Torn JSONL requires recovery, not verify.
 - Under the default `journal_durability="batch"`, a crash loses spans closed in the last group-commit
   window (50 ms or 256 spans by default) plus any commit under way. If the writer falls behind,
