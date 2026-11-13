@@ -68,7 +68,8 @@ Fail-closed exit codes: `0` ok · `1` integrity/policy · `2` recoverable fault.
 - Unpack rewrites local `blob_store` metadata → local seal hash may differ; custody uses pack `bundle_hash`.
 - Torn JSONL requires recovery, not verify.
 - Under the default `journal_durability="batch"`, a crash loses spans closed in the last group-commit
-  window (about 50 ms, at most 256 spans). Under `"close"`, an operating-system crash or power loss
+  window (50 ms or 256 spans by default) plus any commit under way. If the writer falls behind,
+  recording blocks once 1024 spans wait, so that is the upper bound. Under `"close"`, an operating-system crash or power loss
   loses everything since the last `flush_journal()`. Recovery returns the intact prefix; it never
   invents or reorders spans. Use `"span"` when every closed span must survive a crash.
 - Multi-tenant deployments must isolate key rings; never commit key material.
