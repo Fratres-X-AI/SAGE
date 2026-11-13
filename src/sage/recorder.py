@@ -89,6 +89,20 @@ class SageRecorder:
     - Redaction happens before hashing.
     - Large payloads (>1KB) are CAS-offloaded to .sage/blobs/ before hashing.
     - Finalize is fail-closed on incomplete required typed fields.
+
+    Live journal (``journal_dir=``): ``journal_durability`` selects when closed spans reach disk.
+
+    - ``"span"``: fsync before ``end_span`` returns. Nothing that was closed is lost.
+    - ``"batch"`` (default): a background thread group-commits with fsync every
+      ``journal_batch_interval_ms`` (default 50 ms) or ``journal_batch_max_spans`` (default 256)
+      closed spans, whichever comes first. A crash loses at most the spans closed in that window
+      plus the commit under way; never more than four batches' worth, because ``end_span`` then
+      waits for the disk.
+    - ``"close"``: background writes without fsync until ``flush_journal()`` or the seal.
+
+    ``None`` reads ``$SAGE_JOURNAL_DURABILITY`` and falls back to ``"batch"``. Sealing always
+    flushes, fsyncs, and stops the writer thread; a writer failure is raised, never dropped.
+    Hashes do not depend on the mode.
     """
 
     def __init__(
@@ -110,7 +124,27 @@ class SageRecorder:
         register_trace: bool = True,
         journal_dir: str | Path | None = None,
         sanitize_on_close: bool = True,
+        journal_durability: str | None = None,
+        journal_batch_interval_ms: float | None = None,
+        journal_batch_max_spans: int | None = None,
     ) -> None:
+        from sage.journal import (
+            DEFAULT_BATCH_INTERVAL_MS,
+            DEFAULT_BATCH_MAX_SPANS,
+            resolve_durability,
+        )
+
+        self.journal_durability = resolve_durability(journal_durability)
+        self.journal_batch_interval_ms = (
+            DEFAULT_BATCH_INTERVAL_MS if journal_batch_interval_ms is None else float(journal_batch_interval_ms)
+        )
+        self.journal_batch_max_spans = (
+            DEFAULT_BATCH_MAX_SPANS if journal_batch_max_spans is None else int(journal_batch_max_spans)
+        )
+        if self.journal_batch_interval_ms < 0:
+            raise ValueError("journal_batch_interval_ms must be >= 0")
+        if self.journal_batch_max_spans < 1:
+            raise ValueError("journal_batch_max_spans must be >= 1")
         run = run_id or trace_id or new_id("run")
         resolved_title = title or f"trace:{run}"
         self.bundle = IncidentBundle(
@@ -147,23 +181,41 @@ class SageRecorder:
         self._chain_prev_hash = "0" * 64
         self._journal_content: dict[str, str] = {}
         self._journal_index = 0
+        self._journal_writer: Any = None
+        # In "span" mode every offloaded blob is fsynced before end_span returns. Otherwise blobs
+        # are fsynced in groups: before each journal commit, and always before the seal.
+        self._blob_sync = self.journal_durability == "span"
+        self._journal_header: dict[str, Any] | None = None
+        self._journal_header_key: str | None = None
+        self._span_by_id: dict[str, SageSpan] = {}
 
     def __enter__(self) -> "SageRecorder":
         if self.register_trace:
             GLOBAL_TRACE_REGISTRY.begin_write(self.bundle.bundle_id, self._owner)
         if self.journal_dir is not None:
-            from sage.journal import write_live_manifest
-
-            self.journal_dir.mkdir(parents=True, exist_ok=True)
-            write_live_manifest(
-                self.bundle,
-                self.journal_dir,
-                live=True,
-                chain_tip=self._chain_prev_hash,
-            )
+            with self._lock:
+                self._ensure_journal_writer().write_manifest(self._journal_snapshot())
         return self
 
     def __exit__(self, exc_type: object, exc: BaseException | None, tb: object) -> None:
+        # Always stop the journal writer thread. A writer failure is raised unless that would mask
+        # an exception that is already propagating.
+        try:
+            self._exit(exc)
+        except BaseException:
+            try:
+                self.close_journal()
+            except Exception:
+                pass
+            raise
+        try:
+            self.close_journal()
+        except Exception:
+            if exc is None:
+                raise
+        return None
+
+    def _exit(self, exc: BaseException | None) -> None:
         if self._finalized is None:
             has_errors = any(s.status in {"error", "timeout"} for s in self.bundle.spans)
             if self.bundle.root_cause_hint or has_errors or exc is not None:
@@ -223,6 +275,7 @@ class SageRecorder:
             stamp_span_order(span, self._seq, time.perf_counter_ns())
             self._seq += 1
             self.bundle.add_span(span)
+            self._span_by_id[span.span_id] = span
             self._open_spans.add(span.span_id)
             self._stack.append(span.span_id)
             self._finalized = None
@@ -256,34 +309,115 @@ class SageRecorder:
                 blob_store=self.blob_store,
                 redaction_policy=self.bundle.redaction_policy,
                 blob_threshold=self.blob_threshold,
+                blob_sync=self._blob_sync,
             )
             apply_sanitized_fields(span, prepared)
 
-        if self.journal_dir is not None and span_id not in self._journal_appended:
-            from sage.journal import append_live_span, write_live_manifest
+        if self.journal_dir is not None:
+            self._journal_append(span, prepared)
+        return span
 
-            _disk_span, link = append_live_span(
+    # -- live journal -----------------------------------------------------------------------------
+
+    def _ensure_journal_writer(self) -> Any:
+        # Caller holds self._lock.
+        writer = self._journal_writer
+        if writer is None or writer.closed:
+            from sage.journal import LiveJournalWriter
+
+            assert self.journal_dir is not None
+            writer = LiveJournalWriter(
                 self.journal_dir,
+                durability=self.journal_durability,
+                batch_interval_ms=self.journal_batch_interval_ms,
+                batch_max_spans=self.journal_batch_max_spans,
+                pre_commit=self.blob_store.sync_pending,
+            )
+            self._journal_writer = writer
+        return writer
+
+    def _journal_snapshot(self) -> Any:
+        """Manifest state for the spans appended so far. The header is rebuilt only when it changes."""
+        import json
+
+        from sage.journal import live_manifest_header, snapshot_live_manifest
+
+        bundle = self.bundle
+        key = json.dumps(
+            [
+                bundle.schema_version,
+                bundle.bundle_id,
+                bundle.title,
+                bundle.created_at,
+                bundle.source.to_dict(),
+                bundle.root_cause_hint,
+                bundle.metadata,
+                bundle.redactions,
+                bundle.redaction_policy,
+            ],
+            sort_keys=True,
+        )
+        if key != self._journal_header_key or self._journal_header is None:
+            self._journal_header = live_manifest_header(bundle, live=True)
+            self._journal_header_key = key
+        return snapshot_live_manifest(
+            bundle, live=True, chain_tip=self._chain_prev_hash, header=self._journal_header
+        )
+
+    def _journal_append(self, span: SageSpan, prepared: SageSpan | None = None) -> None:
+        """Append one closed span to the live journal (redacted and offloaded first)."""
+        from sage.journal import _jsonl_line, encode_span_record, make_chain_link, prepare_span_for_disk
+
+        with self._lock:
+            if self.journal_dir is None or span.span_id in self._journal_appended:
+                return
+            writer = self._ensure_journal_writer()
+            disk_span = prepared or prepare_span_for_disk(
                 span,
-                index=self._journal_index,
-                prev_hash=self._chain_prev_hash,
                 blob_store=self.blob_store,
                 redaction_policy=self.bundle.redaction_policy,
                 blob_threshold=self.blob_threshold,
-                content_by_id=self._journal_content,
-                disk_span=prepared,
+                blob_sync=self._blob_sync,
             )
-            self._journal_content[span.span_id] = link["content_hash"]
+            content_hash, span_line = encode_span_record(disk_span)
+            content = {disk_span.span_id: content_hash}
+            parent_id = disk_span.parent_id
+            if parent_id:
+                # Every span this recorder journaled is in the map; a parent that is still open
+                # has no content hash yet, exactly as before.
+                parent_hash = self._journal_content.get(parent_id)
+                if parent_hash:
+                    content[parent_id] = parent_hash
+            link = make_chain_link(
+                disk_span, index=self._journal_index, prev_hash=self._chain_prev_hash, content_by_id=content
+            )
+            previous_tip = self._chain_prev_hash
             self._chain_prev_hash = link["hash"]
+            try:
+                writer.append(span_line, _jsonl_line(link), self._journal_snapshot())
+            except BaseException:
+                self._chain_prev_hash = previous_tip
+                raise
+            self._journal_content[span.span_id] = content_hash
             self._journal_index += 1
-            self._journal_appended.add(span_id)
-            write_live_manifest(
-                self.bundle,
-                self.journal_dir,
-                live=True,
-                chain_tip=self._chain_prev_hash,
-            )
-        return span
+            self._journal_appended.add(span.span_id)
+
+    def flush_journal(self) -> None:
+        """Block until every span closed so far is in the live journal and fsynced.
+
+        A no-op without ``journal_dir``. Raises ``JournalWriteError`` if the writer thread failed.
+        """
+        with self._lock:
+            writer = self._journal_writer
+        if writer is not None and not writer.closed:
+            writer.flush(sync=True)
+
+    def close_journal(self) -> None:
+        """Flush, fsync, and stop the journal writer thread. Sealing calls this; it is idempotent."""
+        with self._lock:
+            writer = self._journal_writer
+        if writer is not None:
+            writer.close()
 
     @contextmanager
     def span(
@@ -433,6 +567,9 @@ class SageRecorder:
             )
         )
         with self._lock:
+            # The live journal must be complete and its writer stopped before the seal rewrites it.
+            self.close_journal()
+            self.blob_store.sync_pending()
             if self.register_trace:
                 GLOBAL_TRACE_REGISTRY.begin_write(self.bundle.bundle_id, self._owner)
             try:
@@ -475,6 +612,10 @@ class SageRecorder:
         return save_bundle(bundle, path)
 
     def _get_span(self, span_id: str) -> SageSpan:
+        span = self._span_by_id.get(span_id)
+        if span is not None:
+            return span
+        # Spans added to the bundle directly (importers, taps) are not in the index.
         for span in self.bundle.spans:
             if span.span_id == span_id:
                 return span

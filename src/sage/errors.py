@@ -40,3 +40,7 @@ class SecurityDivergence(SageError):
 
 class FaultRecoveryError(SageError):
     """Carcass is unrecoverable past the crash boundary."""
+
+
+class JournalWriteError(SageError):
+    """The live-journal writer failed; spans recorded after the failure are not on disk."""

@@ -14,14 +14,26 @@ def instrument(
     span_type: str = "agent",
     trace_id: str | None = None,
     framework: str = "custom",
+    journal_dir: str | None = None,
+    journal_durability: str | None = None,
 ) -> Callable[[F], F]:
-    """Decorator: wrap any callable in a SageRecorder + root span (stdlib only)."""
+    """Decorator: wrap any callable in a SageRecorder + root span (stdlib only).
+
+    ``journal_dir`` turns on the live journal; ``journal_durability`` is ``"span"``, ``"batch"``
+    (default) or ``"close"`` (see ``SageRecorder``).
+    """
 
     def decorator(fn: F) -> F:
         @wraps(fn)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             title = name or getattr(fn, "__name__", "agent.run")
-            with SageRecorder(title, trace_id=trace_id, framework=framework) as recorder:
+            with SageRecorder(
+                title,
+                trace_id=trace_id,
+                framework=framework,
+                journal_dir=journal_dir,
+                journal_durability=journal_durability,
+            ) as recorder:
                 with recorder.span(span_type, title) as handle:
                     result = fn(*args, **kwargs)
                     try:
@@ -41,6 +53,8 @@ def wrap_run(
     method: str = "run",
     trace_id: str | None = None,
     framework: str = "custom",
+    journal_dir: str | None = None,
+    journal_durability: str | None = None,
 ) -> SageRecorder:
     """Monkey-patch ``agent.run`` (or ``method``) to record under a live recorder.
 
@@ -51,6 +65,8 @@ def wrap_run(
         title=f"{type(agent).__name__}.{method}",
         trace_id=trace_id,
         framework=framework,
+        journal_dir=journal_dir,
+        journal_durability=journal_durability,
     )
     original = getattr(agent, method)
 

@@ -43,6 +43,7 @@ def test_TM02_journal_forger_live_content_fail_closed(tmp_path: Path):
     with SageRecorder("tm2", journal_dir=journal, register_trace=False) as rec:
         with rec.tool_call("t", inputs={"x": 1}):
             pass
+        rec.flush_journal()  # default durability is "batch": commit before reading the live files
         lines = (journal / SPANS_JSONL).read_text(encoding="utf-8").splitlines()
         obj = json.loads(lines[0])
         obj["inputs"]["x"] = 42

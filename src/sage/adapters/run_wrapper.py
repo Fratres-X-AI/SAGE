@@ -15,6 +15,7 @@ def wrap_agent_run(
     framework: str = "custom",
     journal_dir: str | None = None,
     span_type: str = "agent",
+    journal_durability: str | None = None,
 ) -> Iterator[SageRecorder]:
     """Context manager: temporarily wrap ``agent.<method>`` with SAGE spans.
 
@@ -29,6 +30,7 @@ def wrap_agent_run(
         trace_id=trace_id,
         framework=framework,
         journal_dir=journal_dir,
+        journal_durability=journal_durability,
         register_trace=True,
     )
     recorder.__enter__()
@@ -50,7 +52,13 @@ def wrap_agent_run(
         recorder.__exit__(None, None, None)
 
 
-def crewai_kickoff(agent: Any, *, trace_id: str | None = None, journal_dir: str | None = None):
+def crewai_kickoff(
+    agent: Any,
+    *,
+    trace_id: str | None = None,
+    journal_dir: str | None = None,
+    journal_durability: str | None = None,
+):
     """Wrap CrewAI-style ``kickoff`` (falls back to ``run``)."""
     method = "kickoff" if hasattr(agent, "kickoff") else "run"
     return wrap_agent_run(
@@ -59,10 +67,17 @@ def crewai_kickoff(agent: Any, *, trace_id: str | None = None, journal_dir: str 
         trace_id=trace_id,
         framework="crewai",
         journal_dir=journal_dir,
+        journal_durability=journal_durability,
     )
 
 
-def autogen_chat(agent: Any, *, trace_id: str | None = None, journal_dir: str | None = None):
+def autogen_chat(
+    agent: Any,
+    *,
+    trace_id: str | None = None,
+    journal_dir: str | None = None,
+    journal_durability: str | None = None,
+):
     """Wrap AutoGen-style ``initiate_chat`` / ``chat`` / ``run``."""
     for name in ("initiate_chat", "chat", "run"):
         if hasattr(agent, name):
@@ -72,5 +87,6 @@ def autogen_chat(agent: Any, *, trace_id: str | None = None, journal_dir: str | 
                 trace_id=trace_id,
                 framework="autogen",
                 journal_dir=journal_dir,
+                journal_durability=journal_durability,
             )
     raise AttributeError("autogen adapter: no initiate_chat/chat/run method found")
