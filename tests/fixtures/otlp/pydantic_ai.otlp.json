@@ -1,0 +1,641 @@
+{
+ "resourceSpans": [
+  {
+   "resource": {
+    "attributes": [
+     {
+      "key": "telemetry.sdk.language",
+      "value": {
+       "stringValue": "python"
+      }
+     },
+     {
+      "key": "telemetry.sdk.name",
+      "value": {
+       "stringValue": "opentelemetry"
+      }
+     },
+     {
+      "key": "telemetry.sdk.version",
+      "value": {
+       "stringValue": "1.45.2"
+      }
+     },
+     {
+      "key": "service.instance.id",
+      "value": {
+       "stringValue": "9b4a6c8f-8524-4338-b6ad-082ad756dd72"
+      }
+     },
+     {
+      "key": "service.name",
+      "value": {
+       "stringValue": "pydantic-ai-fixture"
+      }
+     }
+    ]
+   },
+   "scopeSpans": [
+    {
+     "scope": {
+      "name": "pydantic-ai",
+      "version": "2.68.0"
+     },
+     "spans": [
+      {
+       "traceId": "21tfq49NPifdoUlMc88lbQ==",
+       "spanId": "c6tIdnc018E=",
+       "parentSpanId": "x/3oBeyZEI0=",
+       "name": "chat test",
+       "kind": "SPAN_KIND_CLIENT",
+       "startTimeUnixNano": "1794587394403159600",
+       "endTimeUnixNano": "1794587394417162900",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "chat"
+         }
+        },
+        {
+         "key": "gen_ai.agent.name",
+         "value": {
+          "stringValue": "geo"
+         }
+        },
+        {
+         "key": "gen_ai.agent.call.id",
+         "value": {
+          "stringValue": "01a1d5be-8152-710f-96fc-e10f3945aca6"
+         }
+        },
+        {
+         "key": "gen_ai.conversation.id",
+         "value": {
+          "stringValue": "01a1d5be-8152-710f-96fc-e11002c03b97"
+         }
+        },
+        {
+         "key": "gen_ai.provider.name",
+         "value": {
+          "stringValue": "test"
+         }
+        },
+        {
+         "key": "gen_ai.system",
+         "value": {
+          "stringValue": "test"
+         }
+        },
+        {
+         "key": "gen_ai.request.model",
+         "value": {
+          "stringValue": "test"
+         }
+        },
+        {
+         "key": "model_request_parameters",
+         "value": {
+          "stringValue": "{\"function_tools\":[{\"name\":\"lookup\",\"parameters_json_schema\":{\"additionalProperties\":false,\"properties\":{\"q\":{\"type\":\"string\"}},\"required\":[\"q\"],\"type\":\"object\"},\"description\":\"Look up a city.\",\"outer_typed_dict_key\":null,\"strict\":null,\"sequential\":false,\"kind\":\"function\",\"metadata\":null,\"timeout\":null,\"defer_loading\":false,\"unless_native\":null,\"with_native\":null,\"tool_kind\":null,\"unless_tool_kind\":null,\"return_schema\":null,\"include_return_schema\":null,\"toolset_id\":\"<agent>\",\"capability_id\":null}],\"native_tools\":[],\"tool_visibility\":{\"lookup\":\"visible\"},\"revealed_tool_names\":[],\"introduced_tool_names\":[],\"deferred_capability_ids\":[],\"output_mode\":\"tool\",\"output_object\":null,\"output_tools\":[{\"name\":\"final_result\",\"parameters_json_schema\":{\"properties\":{\"name\":{\"type\":\"string\"},\"population\":{\"type\":\"integer\"}},\"required\":[\"name\",\"population\"],\"title\":\"City\",\"type\":\"object\"},\"description\":\"The final response which ends this conversation\",\"outer_typed_dict_key\":null,\"strict\":null,\"sequential\":false,\"kind\":\"output\",\"metadata\":null,\"timeout\":null,\"defer_loading\":false,\"unless_native\":null,\"with_native\":null,\"tool_kind\":null,\"unless_tool_kind\":null,\"return_schema\":null,\"include_return_schema\":null,\"toolset_id\":\"<output>\",\"capability_id\":null}],\"prompted_output_template\":null,\"allow_text_output\":false,\"allow_image_output\":false,\"instruction_parts\":null,\"instruction_visibility\":null,\"thinking\":null,\"cache\":null}"
+         }
+        },
+        {
+         "key": "gen_ai.tool.definitions",
+         "value": {
+          "stringValue": "[{\"type\":\"function\",\"name\":\"lookup\",\"description\":\"Look up a city.\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"q\":{\"type\":\"string\"}},\"required\":[\"q\"],\"type\":\"object\"}},{\"type\":\"function\",\"name\":\"final_result\",\"description\":\"The final response which ends this conversation\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"population\":{\"type\":\"integer\"}},\"required\":[\"name\",\"population\"],\"title\":\"City\",\"type\":\"object\"}}]"
+         }
+        },
+        {
+         "key": "gen_ai.input.messages",
+         "value": {
+          "stringValue": "[{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"content\":\"Find a city. key=sk-fixtureFAKEkey0123456789\"}]}]"
+         }
+        },
+        {
+         "key": "gen_ai.output.messages",
+         "value": {
+          "stringValue": "[{\"role\":\"assistant\",\"parts\":[{\"type\":\"tool_call\",\"id\":\"pyd_ai_tool_call_id__lookup\",\"name\":\"lookup\",\"arguments\":{\"q\":\"a\"}}]}]"
+         }
+        },
+        {
+         "key": "logfire.json_schema",
+         "value": {
+          "stringValue": "{\"type\":\"object\",\"properties\":{\"gen_ai.input.messages\":{\"type\":\"array\"},\"gen_ai.output.messages\":{\"type\":\"array\"},\"model_request_parameters\":{\"type\":\"object\"}}}"
+         }
+        },
+        {
+         "key": "gen_ai.usage.input_tokens",
+         "value": {
+          "intValue": "54"
+         }
+        },
+        {
+         "key": "gen_ai.usage.output_tokens",
+         "value": {
+          "intValue": "5"
+         }
+        },
+        {
+         "key": "gen_ai.response.model",
+         "value": {
+          "stringValue": "test"
+         }
+        }
+       ],
+       "status": {},
+       "flags": 256
+      },
+      {
+       "traceId": "21tfq49NPifdoUlMc88lbQ==",
+       "spanId": "2uRFUIIB4r0=",
+       "parentSpanId": "x/3oBeyZEI0=",
+       "name": "execute_tool lookup",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1794587394418163800",
+       "endTimeUnixNano": "1794587394422159600",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "execute_tool"
+         }
+        },
+        {
+         "key": "gen_ai.tool.name",
+         "value": {
+          "stringValue": "lookup"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.id",
+         "value": {
+          "stringValue": "pyd_ai_tool_call_id__lookup"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.arguments",
+         "value": {
+          "stringValue": "{\"q\":\"a\"}"
+         }
+        },
+        {
+         "key": "gen_ai.agent.name",
+         "value": {
+          "stringValue": "geo"
+         }
+        },
+        {
+         "key": "gen_ai.agent.call.id",
+         "value": {
+          "stringValue": "01a1d5be-8152-710f-96fc-e10f3945aca6"
+         }
+        },
+        {
+         "key": "gen_ai.conversation.id",
+         "value": {
+          "stringValue": "01a1d5be-8152-710f-96fc-e11002c03b97"
+         }
+        },
+        {
+         "key": "logfire.msg",
+         "value": {
+          "stringValue": "running tool: lookup"
+         }
+        },
+        {
+         "key": "logfire.json_schema",
+         "value": {
+          "stringValue": "{\"type\":\"object\",\"properties\":{\"gen_ai.tool.call.arguments\":{\"type\":\"object\"},\"gen_ai.tool.call.result\":{\"type\":\"object\"},\"gen_ai.tool.name\":{},\"gen_ai.tool.call.id\":{}}}"
+         }
+        },
+        {
+         "key": "pydantic_ai.tool.retry.cause",
+         "value": {
+          "stringValue": "model_retry"
+         }
+        },
+        {
+         "key": "pydantic_ai.tool.retry.attempt",
+         "value": {
+          "intValue": "1"
+         }
+        },
+        {
+         "key": "pydantic_ai.tool.retry.max_retries",
+         "value": {
+          "intValue": "1"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.result",
+         "value": {
+          "stringValue": "backend busy, retry"
+         }
+        }
+       ],
+       "events": [
+        {
+         "timeUnixNano": "1794587394422159600",
+         "name": "exception",
+         "attributes": [
+          {
+           "key": "exception.type",
+           "value": {
+            "stringValue": "pydantic_ai.exceptions.ToolRetryError"
+           }
+          },
+          {
+           "key": "exception.message",
+           "value": {
+            "stringValue": "backend busy, retry"
+           }
+          },
+          {
+           "key": "exception.stacktrace",
+           "value": {
+            "stringValue": "pydantic_ai.exceptions.ToolRetryError: backend busy, retry"
+           }
+          },
+          {
+           "key": "exception.escaped",
+           "value": {
+            "stringValue": "True"
+           }
+          }
+         ]
+        }
+       ],
+       "status": {
+        "code": "STATUS_CODE_ERROR"
+       },
+       "flags": 256
+      },
+      {
+       "traceId": "21tfq49NPifdoUlMc88lbQ==",
+       "spanId": "MJ1reZZe2jI=",
+       "parentSpanId": "x/3oBeyZEI0=",
+       "name": "chat test",
+       "kind": "SPAN_KIND_CLIENT",
+       "startTimeUnixNano": "1794587394423160000",
+       "endTimeUnixNano": "1794587394424159000",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "chat"
+         }
+        },
+        {
+         "key": "gen_ai.agent.name",
+         "value": {
+          "stringValue": "geo"
+         }
+        },
+        {
+         "key": "gen_ai.agent.call.id",
+         "value": {
+          "stringValue": "01a1d5be-8152-710f-96fc-e10f3945aca6"
+         }
+        },
+        {
+         "key": "gen_ai.conversation.id",
+         "value": {
+          "stringValue": "01a1d5be-8152-710f-96fc-e11002c03b97"
+         }
+        },
+        {
+         "key": "gen_ai.provider.name",
+         "value": {
+          "stringValue": "test"
+         }
+        },
+        {
+         "key": "gen_ai.system",
+         "value": {
+          "stringValue": "test"
+         }
+        },
+        {
+         "key": "gen_ai.request.model",
+         "value": {
+          "stringValue": "test"
+         }
+        },
+        {
+         "key": "model_request_parameters",
+         "value": {
+          "stringValue": "{\"function_tools\":[{\"name\":\"lookup\",\"parameters_json_schema\":{\"additionalProperties\":false,\"properties\":{\"q\":{\"type\":\"string\"}},\"required\":[\"q\"],\"type\":\"object\"},\"description\":\"Look up a city.\",\"outer_typed_dict_key\":null,\"strict\":null,\"sequential\":false,\"kind\":\"function\",\"metadata\":null,\"timeout\":null,\"defer_loading\":false,\"unless_native\":null,\"with_native\":null,\"tool_kind\":null,\"unless_tool_kind\":null,\"return_schema\":null,\"include_return_schema\":null,\"toolset_id\":\"<agent>\",\"capability_id\":null}],\"native_tools\":[],\"tool_visibility\":{\"lookup\":\"visible\"},\"revealed_tool_names\":[],\"introduced_tool_names\":[],\"deferred_capability_ids\":[],\"output_mode\":\"tool\",\"output_object\":null,\"output_tools\":[{\"name\":\"final_result\",\"parameters_json_schema\":{\"properties\":{\"name\":{\"type\":\"string\"},\"population\":{\"type\":\"integer\"}},\"required\":[\"name\",\"population\"],\"title\":\"City\",\"type\":\"object\"},\"description\":\"The final response which ends this conversation\",\"outer_typed_dict_key\":null,\"strict\":null,\"sequential\":false,\"kind\":\"output\",\"metadata\":null,\"timeout\":null,\"defer_loading\":false,\"unless_native\":null,\"with_native\":null,\"tool_kind\":null,\"unless_tool_kind\":null,\"return_schema\":null,\"include_return_schema\":null,\"toolset_id\":\"<output>\",\"capability_id\":null}],\"prompted_output_template\":null,\"allow_text_output\":false,\"allow_image_output\":false,\"instruction_parts\":null,\"instruction_visibility\":null,\"thinking\":null,\"cache\":null}"
+         }
+        },
+        {
+         "key": "gen_ai.tool.definitions",
+         "value": {
+          "stringValue": "[{\"type\":\"function\",\"name\":\"lookup\",\"description\":\"Look up a city.\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"q\":{\"type\":\"string\"}},\"required\":[\"q\"],\"type\":\"object\"}},{\"type\":\"function\",\"name\":\"final_result\",\"description\":\"The final response which ends this conversation\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"population\":{\"type\":\"integer\"}},\"required\":[\"name\",\"population\"],\"title\":\"City\",\"type\":\"object\"}}]"
+         }
+        },
+        {
+         "key": "gen_ai.input.messages",
+         "value": {
+          "stringValue": "[{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"content\":\"Find a city. key=sk-fixtureFAKEkey0123456789\"}]},{\"role\":\"assistant\",\"parts\":[{\"type\":\"tool_call\",\"id\":\"pyd_ai_tool_call_id__lookup\",\"name\":\"lookup\",\"arguments\":{\"q\":\"a\"}}]},{\"role\":\"user\",\"parts\":[{\"type\":\"tool_call_response\",\"id\":\"pyd_ai_tool_call_id__lookup\",\"name\":\"lookup\",\"result\":\"backend busy, retry\"}]}]"
+         }
+        },
+        {
+         "key": "gen_ai.output.messages",
+         "value": {
+          "stringValue": "[{\"role\":\"assistant\",\"parts\":[{\"type\":\"tool_call\",\"id\":\"pyd_ai_0c93da1d8f8f4a1b9aba65b816318e60\",\"name\":\"lookup\",\"arguments\":{\"q\":\"a\"}}]}]"
+         }
+        },
+        {
+         "key": "logfire.json_schema",
+         "value": {
+          "stringValue": "{\"type\":\"object\",\"properties\":{\"gen_ai.input.messages\":{\"type\":\"array\"},\"gen_ai.output.messages\":{\"type\":\"array\"},\"model_request_parameters\":{\"type\":\"object\"}}}"
+         }
+        },
+        {
+         "key": "gen_ai.usage.input_tokens",
+         "value": {
+          "intValue": "60"
+         }
+        },
+        {
+         "key": "gen_ai.usage.output_tokens",
+         "value": {
+          "intValue": "10"
+         }
+        },
+        {
+         "key": "gen_ai.response.model",
+         "value": {
+          "stringValue": "test"
+         }
+        }
+       ],
+       "status": {},
+       "flags": 256
+      },
+      {
+       "traceId": "21tfq49NPifdoUlMc88lbQ==",
+       "spanId": "zcxpKS9F5ng=",
+       "parentSpanId": "x/3oBeyZEI0=",
+       "name": "execute_tool lookup",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1794587394425158900",
+       "endTimeUnixNano": "1794587394425158900",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "execute_tool"
+         }
+        },
+        {
+         "key": "gen_ai.tool.name",
+         "value": {
+          "stringValue": "lookup"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.id",
+         "value": {
+          "stringValue": "pyd_ai_0c93da1d8f8f4a1b9aba65b816318e60"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.arguments",
+         "value": {
+          "stringValue": "{\"q\":\"a\"}"
+         }
+        },
+        {
+         "key": "gen_ai.agent.name",
+         "value": {
+          "stringValue": "geo"
+         }
+        },
+        {
+         "key": "gen_ai.agent.call.id",
+         "value": {
+          "stringValue": "01a1d5be-8152-710f-96fc-e10f3945aca6"
+         }
+        },
+        {
+         "key": "gen_ai.conversation.id",
+         "value": {
+          "stringValue": "01a1d5be-8152-710f-96fc-e11002c03b97"
+         }
+        },
+        {
+         "key": "logfire.msg",
+         "value": {
+          "stringValue": "running tool: lookup"
+         }
+        },
+        {
+         "key": "logfire.json_schema",
+         "value": {
+          "stringValue": "{\"type\":\"object\",\"properties\":{\"gen_ai.tool.call.arguments\":{\"type\":\"object\"},\"gen_ai.tool.call.result\":{\"type\":\"object\"},\"gen_ai.tool.name\":{},\"gen_ai.tool.call.id\":{}}}"
+         }
+        },
+        {
+         "key": "gen_ai.tool.call.result",
+         "value": {
+          "stringValue": "city a"
+         }
+        }
+       ],
+       "status": {},
+       "flags": 256
+      },
+      {
+       "traceId": "21tfq49NPifdoUlMc88lbQ==",
+       "spanId": "ecuehoMMccI=",
+       "parentSpanId": "x/3oBeyZEI0=",
+       "name": "chat test",
+       "kind": "SPAN_KIND_CLIENT",
+       "startTimeUnixNano": "1794587394426159700",
+       "endTimeUnixNano": "1794587394426159700",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "chat"
+         }
+        },
+        {
+         "key": "gen_ai.agent.name",
+         "value": {
+          "stringValue": "geo"
+         }
+        },
+        {
+         "key": "gen_ai.agent.call.id",
+         "value": {
+          "stringValue": "01a1d5be-8152-710f-96fc-e10f3945aca6"
+         }
+        },
+        {
+         "key": "gen_ai.conversation.id",
+         "value": {
+          "stringValue": "01a1d5be-8152-710f-96fc-e11002c03b97"
+         }
+        },
+        {
+         "key": "gen_ai.provider.name",
+         "value": {
+          "stringValue": "test"
+         }
+        },
+        {
+         "key": "gen_ai.system",
+         "value": {
+          "stringValue": "test"
+         }
+        },
+        {
+         "key": "gen_ai.request.model",
+         "value": {
+          "stringValue": "test"
+         }
+        },
+        {
+         "key": "model_request_parameters",
+         "value": {
+          "stringValue": "{\"function_tools\":[{\"name\":\"lookup\",\"parameters_json_schema\":{\"additionalProperties\":false,\"properties\":{\"q\":{\"type\":\"string\"}},\"required\":[\"q\"],\"type\":\"object\"},\"description\":\"Look up a city.\",\"outer_typed_dict_key\":null,\"strict\":null,\"sequential\":false,\"kind\":\"function\",\"metadata\":null,\"timeout\":null,\"defer_loading\":false,\"unless_native\":null,\"with_native\":null,\"tool_kind\":null,\"unless_tool_kind\":null,\"return_schema\":null,\"include_return_schema\":null,\"toolset_id\":\"<agent>\",\"capability_id\":null}],\"native_tools\":[],\"tool_visibility\":{\"lookup\":\"visible\"},\"revealed_tool_names\":[],\"introduced_tool_names\":[],\"deferred_capability_ids\":[],\"output_mode\":\"tool\",\"output_object\":null,\"output_tools\":[{\"name\":\"final_result\",\"parameters_json_schema\":{\"properties\":{\"name\":{\"type\":\"string\"},\"population\":{\"type\":\"integer\"}},\"required\":[\"name\",\"population\"],\"title\":\"City\",\"type\":\"object\"},\"description\":\"The final response which ends this conversation\",\"outer_typed_dict_key\":null,\"strict\":null,\"sequential\":false,\"kind\":\"output\",\"metadata\":null,\"timeout\":null,\"defer_loading\":false,\"unless_native\":null,\"with_native\":null,\"tool_kind\":null,\"unless_tool_kind\":null,\"return_schema\":null,\"include_return_schema\":null,\"toolset_id\":\"<output>\",\"capability_id\":null}],\"prompted_output_template\":null,\"allow_text_output\":false,\"allow_image_output\":false,\"instruction_parts\":null,\"instruction_visibility\":null,\"thinking\":null,\"cache\":null}"
+         }
+        },
+        {
+         "key": "gen_ai.tool.definitions",
+         "value": {
+          "stringValue": "[{\"type\":\"function\",\"name\":\"lookup\",\"description\":\"Look up a city.\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"q\":{\"type\":\"string\"}},\"required\":[\"q\"],\"type\":\"object\"}},{\"type\":\"function\",\"name\":\"final_result\",\"description\":\"The final response which ends this conversation\",\"parameters\":{\"properties\":{\"name\":{\"type\":\"string\"},\"population\":{\"type\":\"integer\"}},\"required\":[\"name\",\"population\"],\"title\":\"City\",\"type\":\"object\"}}]"
+         }
+        },
+        {
+         "key": "gen_ai.input.messages",
+         "value": {
+          "stringValue": "[{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"content\":\"Find a city. key=sk-fixtureFAKEkey0123456789\"}]},{\"role\":\"assistant\",\"parts\":[{\"type\":\"tool_call\",\"id\":\"pyd_ai_tool_call_id__lookup\",\"name\":\"lookup\",\"arguments\":{\"q\":\"a\"}}]},{\"role\":\"user\",\"parts\":[{\"type\":\"tool_call_response\",\"id\":\"pyd_ai_tool_call_id__lookup\",\"name\":\"lookup\",\"result\":\"backend busy, retry\"}]},{\"role\":\"assistant\",\"parts\":[{\"type\":\"tool_call\",\"id\":\"pyd_ai_0c93da1d8f8f4a1b9aba65b816318e60\",\"name\":\"lookup\",\"arguments\":{\"q\":\"a\"}}]},{\"role\":\"user\",\"parts\":[{\"type\":\"tool_call_response\",\"id\":\"pyd_ai_0c93da1d8f8f4a1b9aba65b816318e60\",\"name\":\"lookup\",\"result\":\"city a\"}]}]"
+         }
+        },
+        {
+         "key": "gen_ai.output.messages",
+         "value": {
+          "stringValue": "[{\"role\":\"assistant\",\"parts\":[{\"type\":\"tool_call\",\"id\":\"pyd_ai_tool_call_id__final_result\",\"name\":\"final_result\",\"arguments\":{\"name\":\"a\",\"population\":0}}]}]"
+         }
+        },
+        {
+         "key": "logfire.json_schema",
+         "value": {
+          "stringValue": "{\"type\":\"object\",\"properties\":{\"gen_ai.input.messages\":{\"type\":\"array\"},\"gen_ai.output.messages\":{\"type\":\"array\"},\"model_request_parameters\":{\"type\":\"object\"}}}"
+         }
+        },
+        {
+         "key": "gen_ai.usage.input_tokens",
+         "value": {
+          "intValue": "62"
+         }
+        },
+        {
+         "key": "gen_ai.usage.output_tokens",
+         "value": {
+          "intValue": "16"
+         }
+        },
+        {
+         "key": "gen_ai.response.model",
+         "value": {
+          "stringValue": "test"
+         }
+        }
+       ],
+       "status": {},
+       "flags": 256
+      },
+      {
+       "traceId": "21tfq49NPifdoUlMc88lbQ==",
+       "spanId": "x/3oBeyZEI0=",
+       "name": "invoke_agent geo",
+       "kind": "SPAN_KIND_INTERNAL",
+       "startTimeUnixNano": "1794587394402160300",
+       "endTimeUnixNano": "1794587394427159500",
+       "attributes": [
+        {
+         "key": "model_name",
+         "value": {
+          "stringValue": "test"
+         }
+        },
+        {
+         "key": "agent_name",
+         "value": {
+          "stringValue": "geo"
+         }
+        },
+        {
+         "key": "gen_ai.agent.name",
+         "value": {
+          "stringValue": "geo"
+         }
+        },
+        {
+         "key": "gen_ai.agent.call.id",
+         "value": {
+          "stringValue": "01a1d5be-8152-710f-96fc-e10f3945aca6"
+         }
+        },
+        {
+         "key": "gen_ai.conversation.id",
+         "value": {
+          "stringValue": "01a1d5be-8152-710f-96fc-e11002c03b97"
+         }
+        },
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "invoke_agent"
+         }
+        },
+        {
+         "key": "logfire.msg",
+         "value": {
+          "stringValue": "geo run"
+         }
+        },
+        {
+         "key": "final_result",
+         "value": {
+          "stringValue": "{\"name\":\"a\",\"population\":0}"
+         }
+        },
+        {
+         "key": "gen_ai.aggregated_usage.input_tokens",
+         "value": {
+          "intValue": "176"
+         }
+        },
+        {
+         "key": "gen_ai.aggregated_usage.output_tokens",
+         "value": {
+          "intValue": "31"
+         }
+        },
+        {
+         "key": "pydantic_ai.all_messages",
+         "value": {
+          "stringValue": "[{\"role\":\"user\",\"parts\":[{\"type\":\"text\",\"content\":\"Find a city. key=sk-fixtureFAKEkey0123456789\"}]},{\"role\":\"assistant\",\"parts\":[{\"type\":\"tool_call\",\"id\":\"pyd_ai_tool_call_id__lookup\",\"name\":\"lookup\",\"arguments\":{\"q\":\"a\"}}]},{\"role\":\"user\",\"parts\":[{\"type\":\"tool_call_response\",\"id\":\"pyd_ai_tool_call_id__lookup\",\"name\":\"lookup\",\"result\":\"backend busy, retry\"}]},{\"role\":\"assistant\",\"parts\":[{\"type\":\"tool_call\",\"id\":\"pyd_ai_0c93da1d8f8f4a1b9aba65b816318e60\",\"name\":\"lookup\",\"arguments\":{\"q\":\"a\"}}]},{\"role\":\"user\",\"parts\":[{\"type\":\"tool_call_response\",\"id\":\"pyd_ai_0c93da1d8f8f4a1b9aba65b816318e60\",\"name\":\"lookup\",\"result\":\"city a\"}]},{\"role\":\"assistant\",\"parts\":[{\"type\":\"tool_call\",\"id\":\"pyd_ai_tool_call_id__final_result\",\"name\":\"final_result\",\"arguments\":{\"name\":\"a\",\"population\":0}}]},{\"role\":\"user\",\"parts\":[{\"type\":\"tool_call_response\",\"id\":\"pyd_ai_tool_call_id__final_result\",\"name\":\"final_result\",\"result\":\"Final result processed.\"}]}]"
+         }
+        },
+        {
+         "key": "logfire.json_schema",
+         "value": {
+          "stringValue": "{\"type\":\"object\",\"properties\":{\"pydantic_ai.all_messages\":{\"type\":\"array\"},\"final_result\":{\"type\":\"object\"}}}"
+         }
+        }
+       ],
+       "status": {},
+       "flags": 256
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

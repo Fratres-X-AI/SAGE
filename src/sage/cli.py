@@ -248,6 +248,10 @@ def _cmd_import(args: argparse.Namespace) -> int:
     try:
         if args.format == "openinference":
             bundle = load_openinference_file(args.path, title=args.title)
+        elif args.format == "otlp":
+            from sage.importers.otlp import load_otlp_file
+
+            bundle = load_otlp_file(args.path, title=args.title)
         else:
             bundle = _load_verified(args.path, rehydrate=False)
         save_bundle(bundle, args.out)
@@ -477,7 +481,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     imp = sub.add_parser("import", help="Import a trace into a SAGE bundle")
     imp.add_argument("path")
-    imp.add_argument("--format", choices=["openinference", "sage"], default="openinference")
+    imp.add_argument(
+        "--format",
+        choices=["openinference", "otlp", "sage"],
+        default="openinference",
+        help="otlp: OTLP JSON, JSON Lines or protobuf (protobuf needs the [otlp] extra)",
+    )
     imp.add_argument("--title", default=None)
     imp.add_argument("--out", required=True)
     imp.set_defaults(func=_cmd_import)
