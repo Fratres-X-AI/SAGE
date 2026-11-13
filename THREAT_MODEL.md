@@ -10,7 +10,7 @@ This is a security tool. Claims are scoped to **integrity and custody of recorde
 |-------|----------------|
 | Compact span content (redacted + CAS refs) | What `bundle_hash` / chain links bind |
 | CAS blobs under content digests | Large payloads without stuffing the chain |
-| Journal (`spans.jsonl` + `chain.jsonl` + sealed manifest) | Crash-safe recording surface |
+| Journal (`spans.jsonl` + `chain.jsonl` + sealed manifest) | Crash-recoverable recording surface; the durability mode sets how many closed spans a crash can lose |
 | Pack (`.sage.tar.gz` + `pack.json`) | Portable handoff unit |
 | Witness log (`witness.jsonl`) | Append-only custody actions |
 | Verify receipts | Proof a specific artifact was verified under a policy |
@@ -67,4 +67,8 @@ Fail-closed exit codes: `0` ok · `1` integrity/policy · `2` recoverable fault.
 - Secrets exist in memory until span close (sanitize-on-close mitigates after end).
 - Unpack rewrites local `blob_store` metadata → local seal hash may differ; custody uses pack `bundle_hash`.
 - Torn JSONL requires recovery, not verify.
+- Under the default `journal_durability="batch"`, a crash loses spans closed in the last group-commit
+  window (about 50 ms, at most 256 spans). Under `"close"`, an operating-system crash or power loss
+  loses everything since the last `flush_journal()`. Recovery returns the intact prefix; it never
+  invents or reorders spans. Use `"span"` when every closed span must survive a crash.
 - Multi-tenant deployments must isolate key rings; never commit key material.

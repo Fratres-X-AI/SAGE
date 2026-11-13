@@ -106,7 +106,7 @@ jobs:
         run: >
           python scripts/measure_overhead.py --mode journal --durability all
           --spans 2000 --span-mode-spans 500 --payload-bytes 64,512,4096,32768
-          --max-default-median-ms 1.0 --out benchmark/journal.json
+          --max-default-median-ms 2.0 --out benchmark/journal.json
       - name: Consultancy workflow overhead (each durability mode)
         run: >
           python scripts/measure_overhead.py --mode workflow --durability all

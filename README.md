@@ -163,8 +163,8 @@ with SageRecorder(trace_id="incident-42", journal_dir="run.journal", journal_dur
 
 Measure it on your own hardware: `python scripts/measure_overhead.py --mode journal --durability all`
 prints per-span medians by mode and payload size as JSON. CI runs the same script on Linux and keeps
-the result as the `journal-benchmark` artifact. These are measurements, not a service-level
-commitment.
+the result as the `journal-benchmark` artifact. [docs/perf.md](docs/perf.md) has reference numbers
+for Linux and Windows. These are measurements, not a service-level commitment.
 
 ## What you get
 
