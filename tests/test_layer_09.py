@@ -40,6 +40,7 @@ def test_manifest_wal_recover(tmp_path: Path):
     with SageRecorder("wal", journal_dir=journal, register_trace=False) as rec:
         with rec.tool_call("t", inputs={"x": 1}):
             pass
+        rec.flush_journal()  # default durability is "batch": commit before reading the live files
         assert (journal / MANIFEST_WAL).exists()
         wal_lines = (journal / MANIFEST_WAL).read_text(encoding="utf-8").strip().splitlines()
         assert len(wal_lines) >= 2  # enter + span close

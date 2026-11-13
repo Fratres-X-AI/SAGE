@@ -23,6 +23,7 @@ def test_live_journal_tampered_span_fail_closed(tmp_path: Path):
     with SageRecorder("live", journal_dir=journal, register_trace=False) as rec:
         with rec.tool_call("t", inputs={"x": 1}):
             pass
+        rec.flush_journal()  # default durability is "batch": commit before reading the live files
         report = verify_journal(journal, allow_live=True)
         assert report["content_verified"] is True
         # Tamper span body after chain write.

@@ -162,10 +162,10 @@ def _run_with_journal(**recorder_kwargs):
 
 
 def _durability_params():
-    return [{}]
+    return [{}, {"journal_durability": "span"}, {"journal_durability": "batch"}, {"journal_durability": "close"}]
 
 
-@pytest.mark.parametrize("kwargs", _durability_params(), ids=["default"])
+@pytest.mark.parametrize("kwargs", _durability_params(), ids=["default", "span", "batch", "close"])
 def test_journal_recording_hashes_are_unchanged(deterministic, kwargs):
     bundle, manifest, live = _run_with_journal(**kwargs)
     assert bundle.audit.bundle_hash == EXPECTED_BUNDLE_HASH

@@ -208,12 +208,14 @@ class _SageLangChainCore:
         *,
         trace_id: str | None = None,
         journal_dir: str | None = None,
+        journal_durability: str | None = None,
     ) -> None:
         self.recorder = recorder or SageRecorder(
             title="langchain",
             trace_id=trace_id,
             framework="langchain",
             journal_dir=journal_dir,
+            journal_durability=journal_durability,
             register_trace=True,
         )
         self._lock = threading.Lock()
@@ -575,5 +577,8 @@ def attach_langchain_callback(
     *,
     trace_id: str | None = None,
     journal_dir: str | None = None,
+    journal_durability: str | None = None,
 ) -> SageLangChainCallback:
-    return SageLangChainCallback(trace_id=trace_id, journal_dir=journal_dir)
+    return SageLangChainCallback(
+        trace_id=trace_id, journal_dir=journal_dir, journal_durability=journal_durability
+    )
