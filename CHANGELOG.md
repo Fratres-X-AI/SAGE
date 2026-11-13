@@ -30,7 +30,8 @@ Frozen formats are unchanged; artifacts sealed by 2.2.0 still verify (`tests/fix
     are now `ChainIntegrityError` or `ReceiptMismatchError`.
 - On Windows, a process reading a live journal's manifest could make the recorder's manifest update
   fail (`PermissionError` from `os.replace`), which stopped the background writer. Journal, bundle,
-  and blob writes now retry the replace for up to 5 seconds while a reader has the file open.
+  and blob writes now retry the replace for up to 5 seconds while a reader has the file open, and
+  SAGE's own manifest reads retry while a replace is under way.
 
 
 ### Recipient experience

@@ -14,6 +14,7 @@ from sage.audit import require_verified, verify_parent_content_hashes
 from sage.bundle_io import load_bundle
 from sage.errors import ChainIntegrityError
 from sage.journal import MANIFEST_NAME, SPANS_JSONL, recover_journal
+from sage.locks import read_text_file
 from sage.recorder import SageRecorder
 
 
@@ -345,7 +346,7 @@ def test_batch_mode_commits_within_its_interval_without_a_flush(tmp_path):
             tool.set_output(ok=True)
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
-            manifest = json.loads((journal / MANIFEST_NAME).read_text(encoding="utf-8"))
+            manifest = json.loads(read_text_file(journal / MANIFEST_NAME))
             if manifest["span_count"] == 1 and manifest["chain_tip"] != "0" * 64:
                 break
             time.sleep(0.01)
@@ -386,6 +387,42 @@ def test_reader_polling_the_live_manifest_does_not_fail_the_writer(tmp_path):
             reader.join()
         manifest = json.loads((journal / MANIFEST_NAME).read_text(encoding="utf-8"))
         assert manifest["span_count"] == 60
+
+
+def test_live_verify_while_recording_does_not_trip_over_the_manifest_replace(tmp_path):
+    from sage.journal import verify_journal
+
+    journal = tmp_path / "j"
+    errors: list[BaseException] = []
+    stop = threading.Event()
+
+    def verify_loop() -> None:
+        while not stop.is_set():
+            try:
+                verify_journal(journal, allow_live=True)
+            except PermissionError as exc:
+                errors.append(exc)
+                return
+            except Exception:
+                pass  # a live prefix mid-commit may not verify yet; only the replace race matters
+
+    with SageRecorder(
+        "verified-live", blob_store=tmp_path / "blobs", journal_dir=journal, register_trace=False,
+        journal_durability="batch", journal_batch_interval_ms=1,
+    ) as rec:
+        with rec.tool_call("first", inputs={}) as tool:
+            tool.set_output(ok=True)
+        rec.flush_journal()
+        checker = threading.Thread(target=verify_loop, daemon=True)
+        checker.start()
+        try:
+            for i in range(150):
+                with rec.tool_call(f"s{i}", inputs={"i": i}) as tool:
+                    tool.set_output(ok=True)
+        finally:
+            stop.set()
+            checker.join()
+    assert errors == []
 
 
 def test_span_mode_is_on_disk_when_end_span_returns(tmp_path):
