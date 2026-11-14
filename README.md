@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/Fratres-X-AI/SAGE/actions/workflows/ci.yml"><img src="https://github.com/Fratres-X-AI/SAGE/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-FSL--1.1--ALv2-red.svg" alt="License" /></a>
-  <a href="https://github.com/Fratres-X-AI/SAGE/releases/tag/v2.2.0"><img src="https://img.shields.io/badge/release-v2.2.0-informational.svg" alt="Release" /></a>
+  <a href="https://github.com/Fratres-X-AI/SAGE/releases/tag/v2.3.0"><img src="https://img.shields.io/badge/release-v2.3.0-informational.svg" alt="Release" /></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python" /></a>
 </p>
 
@@ -27,8 +27,9 @@ Observability products already exist. The gap is a **backend-neutral forensic pa
 
 SAGE is a **security tool**, not a chat UI, not an RCA leaderboard, and not “AI observability SaaS.”
 
-Latest published release: **v2.2.0** (the badge above). A source checkout of this branch is the
-**2.3.0** final candidate, which is not published yet; the instructions below use the checkout.
+Latest published release: **[v2.3.0](https://github.com/Fratres-X-AI/SAGE/releases/tag/v2.3.0)** (wheel,
+`sage-verify` pyz, checksums, SBOM, Sigstore bundles). A source checkout tracks `main`; use [Install](#install)
+for either path.
 
 ## Five-minute pilot demonstration
 
@@ -187,6 +188,10 @@ what each adapter covers and what is not validated.
 
 ## Live journal durability
 
+For production agent runs, use the default **`"batch"`** durability (omit `journal_durability=`). Use
+`"span"` only when every closed span must hit disk before `end_span` returns; use `"close"` for
+bulk capture with rare `flush_journal()` checkpoints.
+
 Pass `journal_dir=` to write a crash-recoverable journal while the run is in progress. Closed spans
 are redacted, offloaded, hash-chained, and appended to `spans.jsonl` / `chain.jsonl`.
 `journal_durability=` selects when they reach the disk:
@@ -255,18 +260,36 @@ Formats are frozen under the [2.x compatibility covenant](COMPATIBILITY.md).
 
 ## Install
 
-SAGE is not published on PyPI. Install from a checkout or from a wheel you were given:
+**Pilot / recipient (no checkout):** download
+[`sage_incident_bundles-2.3.0-py3-none-any.whl`](https://github.com/Fratres-X-AI/SAGE/releases/download/v2.3.0/sage_incident_bundles-2.3.0-py3-none-any.whl)
+from the [v2.3.0 release](https://github.com/Fratres-X-AI/SAGE/releases/tag/v2.3.0). Verify
+`SHA256SUMS.json` with `scripts/verify_release.py` when you need attestation checks.
 
 ```bash
-pip install -e ".[dev]"            # checkout: core + tests + cryptography
+python -m venv .venv && .venv\Scripts\activate    # PowerShell; on Unix: source .venv/bin/activate
+python -m pip install "sage_incident_bundles-2.3.0-py3-none-any.whl[sign]"   # drop [sign] for HMAC-only kits
+sage doctor
+```
+
+Offline verifier only (Python 3.10+, no pip):
+
+```bash
+python sage-verify-2.3.0.pyz <handoff-kit> --hmac-key-file keys/hmac.key --public-key-file keys/ed25519.public.txt
+```
+
+PyPI publish is optional (off until the maintainer enables trusted publishing — see [RELEASE.md](RELEASE.md)).
+
+**Developers (checkout on `main`):**
+
+```bash
+pip install -e ".[dev]"            # core + tests + cryptography
 pip install -e ".[langchain]"      # pinned langchain-core for the callback adapter
+pip install -e ".[langgraph]"      # LangGraph StateGraph tests / demos
 pip install -e ".[openai-agents]"  # pinned openai-agents for the tracing processor
 pip install -e ".[pydantic-ai]"    # pinned pydantic-ai-slim + opentelemetry-sdk
 pip install -e ".[otlp]"           # pinned opentelemetry-proto for binary OTLP import
 pip install -e ".[sign]"           # Ed25519 only
 pip install -e ".[tui]"            # optional inspect TUI
-
-python -m pip install "sage_incident_bundles-<version>-py3-none-any.whl[sign]"   # recipient; drop [sign] for unsigned kits
 ```
 
 Core recorder / CAS / verify / CLI remain **stdlib-only**.
@@ -286,6 +309,9 @@ CI: Ubuntu · Windows · macOS × Python 3.10 / 3.12.
 
 | Doc | Purpose |
 |-----|---------|
+| [PILOT_ONBOARDING.md](docs/PILOT_ONBOARDING.md) | Send to design partners: install from release, five-minute proof |
+| [LANGGRAPH_PILOT.md](docs/LANGGRAPH_PILOT.md) | LangGraph wiring and validated scope |
+| [PILOT_SALES_CHECKLIST.md](docs/PILOT_SALES_CHECKLIST.md) | Kyle: demo, legal placeholders, before first invoice |
 | [VERIFY_RUNBOOK.md](docs/VERIFY_RUNBOOK.md) | Record → ship → auditor re-verify |
 | [AUDITOR_KIT.md](docs/AUDITOR_KIT.md) | Pinned-signature verify posture |
 | [REDACTION.md](docs/REDACTION.md) | Redaction rules, opt-in detectors, `sage scan` pre-share check |

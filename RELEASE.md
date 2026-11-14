@@ -66,6 +66,15 @@ Pushing a `v*` tag runs `.github/workflows/release.yml`. Every action is pinned 
    publishing from the `pypi` environment, so no token is stored. Add a required reviewer on that
    environment before enabling it.
 
+### Enable PyPI (optional; off by default)
+
+1. On PyPI: register the project and add a **trusted publisher** for this repo (`release.yml` workflow, environment `pypi`).
+2. On GitHub: **Settings → Environments → pypi** — add protection rules / required reviewers.
+3. **Settings → Secrets and variables → Actions → Variables**: set `SAGE_PYPI_ENABLED` to `true`.
+4. Push a new `v*` tag (or re-run release after enabling). The `pypi` job uploads wheel + sdist only.
+
+Until then, pilots install from **GitHub Releases** (`docs/PILOT_ONBOARDING.md`).
+
 To check reproducibility locally before tagging:
 
 ```bash

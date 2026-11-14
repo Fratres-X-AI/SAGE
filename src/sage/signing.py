@@ -22,11 +22,12 @@ def install_hint() -> str:
     """How to add Ed25519 support to the SAGE that is installed right now."""
     from sage.version import __version__
 
+    wheel = f"sage_incident_bundles-{__version__}-py3-none-any.whl"
     return (
         f"Ed25519 signatures require the 'cryptography' package, which SAGE {__version__} in this "
         f"environment does not have: python -m pip install cryptography "
-        f"(or reinstall with the extra: python -m pip install "
-        f"\"<path to>/sage_incident_bundles-{__version__}-py3-none-any.whl[sign]\")"
+        f"(or reinstall with the extra: python -m pip install \"{wheel}[sign]\" "
+        f"from https://github.com/Fratres-X-AI/SAGE/releases/tag/v{__version__})"
     )
 
 
