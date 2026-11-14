@@ -1,0 +1,248 @@
+{
+  "audit": {
+    "bundle_hash": "ecd7abdea885d93ac3acc58125a5d7deb43efdccd8ba75f4b583f4a15a3088c1",
+    "chain": [
+      {
+        "content_hash": "e114482a8d32597327f7f14c510150def4d23726d3dcd75b95b753117524aaae",
+        "hash": "fefce9c7458fc09c4668f733974a2ba3d9aa118397a5a08e529b319ba8112819",
+        "index": 0,
+        "parent_content_hash": "0371b16997c2a56666df580c1c3b68364b92241b3b0b1b2c2326d3c5e7117936",
+        "parent_id": "span_9120caa0d005473c93f156409e71cc14",
+        "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "span_hash": "e114482a8d32597327f7f14c510150def4d23726d3dcd75b95b753117524aaae",
+        "span_id": "span_593f1b9c6e0e4079ac1995710f36a9f6",
+        "span_name": "model",
+        "span_type": "llm",
+        "timestamp": "2026-11-12T22:21:56.888232Z"
+      },
+      {
+        "content_hash": "0371b16997c2a56666df580c1c3b68364b92241b3b0b1b2c2326d3c5e7117936",
+        "hash": "b2686bf3e68ea2b769235fc72737c29f45390706289de00da90eea962aa9ba75",
+        "index": 1,
+        "parent_content_hash": null,
+        "parent_id": null,
+        "prev_hash": "fefce9c7458fc09c4668f733974a2ba3d9aa118397a5a08e529b319ba8112819",
+        "span_hash": "0371b16997c2a56666df580c1c3b68364b92241b3b0b1b2c2326d3c5e7117936",
+        "span_id": "span_9120caa0d005473c93f156409e71cc14",
+        "span_name": "support-flow",
+        "span_type": "chain",
+        "timestamp": "2026-11-12T22:21:56.915215Z"
+      },
+      {
+        "content_hash": "736136597fb9a2f4fe187b3de3466a56ca51d174057ef4669017a7f1e2fea04f",
+        "hash": "47eff1dc552ef2fcbd53337f5c133275ca6d7fe8b337ad2d75f8164e854a0365",
+        "index": 2,
+        "parent_content_hash": "0371b16997c2a56666df580c1c3b68364b92241b3b0b1b2c2326d3c5e7117936",
+        "parent_id": "span_9120caa0d005473c93f156409e71cc14",
+        "prev_hash": "b2686bf3e68ea2b769235fc72737c29f45390706289de00da90eea962aa9ba75",
+        "span_hash": "736136597fb9a2f4fe187b3de3466a56ca51d174057ef4669017a7f1e2fea04f",
+        "span_id": "span_b4da6221a42744d5811ecbb2db6962a4",
+        "span_name": "history",
+        "span_type": "tool",
+        "timestamp": "2026-11-12T22:21:56.895222Z"
+      }
+    ]
+  },
+  "audit_chain": [
+    {
+      "content_hash": "e114482a8d32597327f7f14c510150def4d23726d3dcd75b95b753117524aaae",
+      "hash": "fefce9c7458fc09c4668f733974a2ba3d9aa118397a5a08e529b319ba8112819",
+      "index": 0,
+      "parent_content_hash": "0371b16997c2a56666df580c1c3b68364b92241b3b0b1b2c2326d3c5e7117936",
+      "parent_id": "span_9120caa0d005473c93f156409e71cc14",
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "span_hash": "e114482a8d32597327f7f14c510150def4d23726d3dcd75b95b753117524aaae",
+      "span_id": "span_593f1b9c6e0e4079ac1995710f36a9f6",
+      "span_name": "model",
+      "span_type": "llm",
+      "timestamp": "2026-11-12T22:21:56.888232Z"
+    },
+    {
+      "content_hash": "0371b16997c2a56666df580c1c3b68364b92241b3b0b1b2c2326d3c5e7117936",
+      "hash": "b2686bf3e68ea2b769235fc72737c29f45390706289de00da90eea962aa9ba75",
+      "index": 1,
+      "parent_content_hash": null,
+      "parent_id": null,
+      "prev_hash": "fefce9c7458fc09c4668f733974a2ba3d9aa118397a5a08e529b319ba8112819",
+      "span_hash": "0371b16997c2a56666df580c1c3b68364b92241b3b0b1b2c2326d3c5e7117936",
+      "span_id": "span_9120caa0d005473c93f156409e71cc14",
+      "span_name": "support-flow",
+      "span_type": "chain",
+      "timestamp": "2026-11-12T22:21:56.915215Z"
+    },
+    {
+      "content_hash": "736136597fb9a2f4fe187b3de3466a56ca51d174057ef4669017a7f1e2fea04f",
+      "hash": "47eff1dc552ef2fcbd53337f5c133275ca6d7fe8b337ad2d75f8164e854a0365",
+      "index": 2,
+      "parent_content_hash": "0371b16997c2a56666df580c1c3b68364b92241b3b0b1b2c2326d3c5e7117936",
+      "parent_id": "span_9120caa0d005473c93f156409e71cc14",
+      "prev_hash": "b2686bf3e68ea2b769235fc72737c29f45390706289de00da90eea962aa9ba75",
+      "span_hash": "736136597fb9a2f4fe187b3de3466a56ca51d174057ef4669017a7f1e2fea04f",
+      "span_id": "span_b4da6221a42744d5811ecbb2db6962a4",
+      "span_name": "history",
+      "span_type": "tool",
+      "timestamp": "2026-11-12T22:21:56.895222Z"
+    }
+  ],
+  "bundle_id": "compat-fixture",
+  "created_at": "2026-11-12T22:21:56.878217Z",
+  "metadata": {
+    "blob_store": "blobs",
+    "blob_threshold": 1024,
+    "chain_file": "chain.jsonl",
+    "spans_file": "spans.jsonl",
+    "storage": "sage.journal.v1",
+    "trace_id": "compat-fixture"
+  },
+  "redaction_policy": {
+    "applied": true,
+    "key_fragments": [
+      "api_key",
+      "authorization",
+      "cookie",
+      "credential",
+      "password",
+      "secret",
+      "token"
+    ],
+    "value_patterns": [
+      "sk-[A-Za-z0-9_\\-]{8,}",
+      "Bearer\\s+[A-Za-z0-9_\\-\\.]+"
+    ]
+  },
+  "redactions": [],
+  "root_cause_hint": null,
+  "run_id": "compat-fixture",
+  "schema_version": "1.0",
+  "source": {
+    "environment": "local",
+    "framework": "custom",
+    "run_id": "compat-fixture"
+  },
+  "spans": [
+    {
+      "agent_id": null,
+      "agent_role": null,
+      "attributes": {
+        "sage.mono_ns": 1252020079930400,
+        "sage.seq": 1
+      },
+      "contribution_score": null,
+      "data": {
+        "finish_reason": null,
+        "input": {
+          "prompt": "Where is order 42?"
+        },
+        "model": "deterministic-test-model",
+        "output": {
+          "text": "Order 42 shipped."
+        },
+        "parameters": {},
+        "usage": {}
+      },
+      "end_time": "2026-11-12T22:21:56.888232Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {
+        "prompt": "Where is order 42?"
+      },
+      "is_suspected_root_cause": false,
+      "kind": "LLM",
+      "name": "model",
+      "outputs": {
+        "text": "Order 42 shipped."
+      },
+      "parent_id": "span_9120caa0d005473c93f156409e71cc14",
+      "span_id": "span_593f1b9c6e0e4079ac1995710f36a9f6",
+      "start_time": "2026-11-12T22:21:56.888232Z",
+      "status": "ok",
+      "trace_id": "compat-fixture",
+      "type": "llm"
+    },
+    {
+      "agent_id": null,
+      "agent_role": null,
+      "attributes": {
+        "sage.mono_ns": 1252020079904300,
+        "sage.seq": 0
+      },
+      "contribution_score": null,
+      "data": {
+        "input": {
+          "question": "Where is order 42?"
+        },
+        "output": {
+          "answer": "Order 42 shipped."
+        }
+      },
+      "end_time": "2026-11-12T22:21:56.915215Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {
+        "question": "Where is order 42?"
+      },
+      "is_suspected_root_cause": false,
+      "kind": "CHAIN",
+      "name": "support-flow",
+      "outputs": {
+        "answer": "Order 42 shipped."
+      },
+      "parent_id": null,
+      "span_id": "span_9120caa0d005473c93f156409e71cc14",
+      "start_time": "2026-11-12T22:21:56.888232Z",
+      "status": "ok",
+      "trace_id": "compat-fixture",
+      "type": "chain"
+    },
+    {
+      "agent_id": null,
+      "agent_role": null,
+      "attributes": {
+        "sage.mono_ns": 1252020087350300,
+        "sage.seq": 2
+      },
+      "contribution_score": null,
+      "data": {
+        "input": {
+          "q": "orders"
+        },
+        "latency_ms": null,
+        "output": {
+          "documents": {
+            "$sage_blob": "d2b6f08e5abec83116f3f63199fed62cf87c05079810bd0120aa24bc59136ba7",
+            "size": 2004
+          }
+        },
+        "side_effects": false,
+        "success": true,
+        "tool_name": "history"
+      },
+      "end_time": "2026-11-12T22:21:56.895222Z",
+      "error": null,
+      "events": [],
+      "failure_context": null,
+      "inputs": {
+        "q": "orders"
+      },
+      "is_suspected_root_cause": false,
+      "kind": "TOOL",
+      "name": "history",
+      "outputs": {
+        "documents": {
+          "$sage_blob": "d2b6f08e5abec83116f3f63199fed62cf87c05079810bd0120aa24bc59136ba7",
+          "size": 2004
+        }
+      },
+      "parent_id": "span_9120caa0d005473c93f156409e71cc14",
+      "span_id": "span_b4da6221a42744d5811ecbb2db6962a4",
+      "start_time": "2026-11-12T22:21:56.895222Z",
+      "status": "ok",
+      "trace_id": "compat-fixture",
+      "type": "tool"
+    }
+  ],
+  "status": "completed",
+  "title": "compat fixture"
+}

@@ -28,6 +28,7 @@ from sage.schema import IncidentBundle, SageSpan
 from sage.errors import (
     BlobIntegrityError,
     ChainIntegrityError,
+    JournalWriteError,
     SecurityDivergence,
     SplitBrainError,
 )
@@ -46,6 +47,7 @@ __all__ = [
     "HealCapability",
     "HealPatch",
     "IncidentBundle",
+    "JournalWriteError",
     "VerifyPolicy",
     "__version__",
     "append_witness",

@@ -1,0 +1,114 @@
+{
+  "audit": {
+    "bundle_hash": "15460d905a0bbed7b2e012ea0a52bb0ac4bbd4188d35333d41b71b817ec13225",
+    "chain": [
+      {
+        "content_hash": "e0eb4085c32a383669c5e6422352cb85f545e16084907815a7f244214dce7616",
+        "hash": "22ec8bc3f020c4a276498183f85281c1d949203e3af2312004d3d3fe667e4476",
+        "index": 0,
+        "parent_content_hash": null,
+        "parent_id": null,
+        "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "span_hash": "e0eb4085c32a383669c5e6422352cb85f545e16084907815a7f244214dce7616",
+        "span_id": "span_13004401ea7b4410a452cdde56285b99",
+        "span_name": "support-agent",
+        "span_type": "agent",
+        "timestamp": "2026-01-01T00:00:00.013000Z"
+      },
+      {
+        "content_hash": "2e37141f396a27ad9900d970fff470b456e745288a3f6c71d21b30806f98b467",
+        "hash": "d6a107ed0b9b1df72fa7461ff5e85f20ac98a4cb355259dd352941c8b0f7b937",
+        "index": 1,
+        "parent_content_hash": "e0eb4085c32a383669c5e6422352cb85f545e16084907815a7f244214dce7616",
+        "parent_id": "span_13004401ea7b4410a452cdde56285b99",
+        "prev_hash": "22ec8bc3f020c4a276498183f85281c1d949203e3af2312004d3d3fe667e4476",
+        "span_hash": "2e37141f396a27ad9900d970fff470b456e745288a3f6c71d21b30806f98b467",
+        "span_id": "span_6e37ddc4dd834cc5ab598d5bbe4dd0c6",
+        "span_name": "plan",
+        "span_type": "llm",
+        "timestamp": "2026-01-01T00:00:00.005000Z"
+      },
+      {
+        "content_hash": "951d5ba52550b6b2524a6b7ff2b0623e8f15480b0afcb0787fa35a3a15d7649b",
+        "hash": "0da1d92f8803207292c9fcf8f5b3f336b9d14d7ba86bca2945bd3a38d69bdc01",
+        "index": 2,
+        "parent_content_hash": "e0eb4085c32a383669c5e6422352cb85f545e16084907815a7f244214dce7616",
+        "parent_id": "span_13004401ea7b4410a452cdde56285b99",
+        "prev_hash": "d6a107ed0b9b1df72fa7461ff5e85f20ac98a4cb355259dd352941c8b0f7b937",
+        "span_hash": "951d5ba52550b6b2524a6b7ff2b0623e8f15480b0afcb0787fa35a3a15d7649b",
+        "span_id": "span_91768cf0cfdd48768a7c6c0558542bb6",
+        "span_name": "policy-lookup",
+        "span_type": "retrieval",
+        "timestamp": "2026-01-01T00:00:00.008000Z"
+      },
+      {
+        "content_hash": "26e2f053af304fcf20e8c8e8cc13b13943d9840c61b09f0056984ec4d8a70490",
+        "hash": "c5710b81a70be018364947f9bd022d61849bde5eb0a1ec7cd1769001c459cf09",
+        "index": 3,
+        "parent_content_hash": "e0eb4085c32a383669c5e6422352cb85f545e16084907815a7f244214dce7616",
+        "parent_id": "span_13004401ea7b4410a452cdde56285b99",
+        "prev_hash": "0da1d92f8803207292c9fcf8f5b3f336b9d14d7ba86bca2945bd3a38d69bdc01",
+        "span_hash": "26e2f053af304fcf20e8c8e8cc13b13943d9840c61b09f0056984ec4d8a70490",
+        "span_id": "span_0a4f93eb183d4fe69c31b12ffb89ce61",
+        "span_name": "refund_tool",
+        "span_type": "tool",
+        "timestamp": "2026-01-01T00:00:00.011000Z"
+      }
+    ]
+  },
+  "bundle_id": "conformance",
+  "chain_file": "chain.jsonl",
+  "chain_tip": "c5710b81a70be018364947f9bd022d61849bde5eb0a1ec7cd1769001c459cf09",
+  "created_at": "2026-01-01T00:00:00.001000Z",
+  "manifest_seal": "1de60633d7b9951240266835480bff8cd1210981ab1247f7d089d0149bc3a669",
+  "merkle_root": "dae906a076fff8b40a12a36e5b8be5327c229af46639ea0fbc70dec345c06563",
+  "metadata": {
+    "api_key": "[REDACTED]",
+    "blob_store": "blobs",
+    "blob_threshold": 1024,
+    "chain_file": "chain.jsonl",
+    "customer": "example",
+    "spans_file": "spans.jsonl",
+    "storage": "sage.journal.v1",
+    "trace_id": "conformance"
+  },
+  "redaction_policy": {
+    "applied": true,
+    "key_fragments": [
+      "api_key",
+      "authorization",
+      "cookie",
+      "credential",
+      "password",
+      "secret",
+      "token"
+    ],
+    "value_patterns": [
+      "sk-[A-Za-z0-9_\\-]{8,}",
+      "Bearer\\s+[A-Za-z0-9_\\-\\.]+"
+    ]
+  },
+  "redactions": [
+    {
+      "path": "metadata.api_key",
+      "reason": "sensitive_key"
+    }
+  ],
+  "root_cause_hint": null,
+  "schema_version": "1.0",
+  "source": {
+    "environment": "conformance",
+    "framework": "custom",
+    "run_id": "run_conformance"
+  },
+  "span_count": 4,
+  "span_ids": [
+    "span_13004401ea7b4410a452cdde56285b99",
+    "span_6e37ddc4dd834cc5ab598d5bbe4dd0c6",
+    "span_91768cf0cfdd48768a7c6c0558542bb6",
+    "span_0a4f93eb183d4fe69c31b12ffb89ce61"
+  ],
+  "spans_file": "spans.jsonl",
+  "status": "failed",
+  "title": "Conformance incident: refund tool timed out"
+}

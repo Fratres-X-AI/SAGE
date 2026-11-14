@@ -1,4 +1,4 @@
-# SAGE Threat Model (v2.0)
+# SAGE Threat Model (v2.3)
 
 SAGE is an **agent incident forensics** toolkit: portable, redactable, hash-chained evidence you can verify without trusting the producer’s UI.
 
@@ -10,7 +10,7 @@ This is a security tool. Claims are scoped to **integrity and custody of recorde
 |-------|----------------|
 | Compact span content (redacted + CAS refs) | What `bundle_hash` / chain links bind |
 | CAS blobs under content digests | Large payloads without stuffing the chain |
-| Journal (`spans.jsonl` + `chain.jsonl` + sealed manifest) | Crash-safe recording surface |
+| Journal (`spans.jsonl` + `chain.jsonl` + sealed manifest) | Crash-recoverable recording surface; the durability mode sets how many closed spans a crash can lose |
 | Pack (`.sage.tar.gz` + `pack.json`) | Portable handoff unit |
 | Witness log (`witness.jsonl`) | Append-only custody actions |
 | Verify receipts | Proof a specific artifact was verified under a policy |
@@ -36,7 +36,15 @@ Hashes and HMACs prove **artifact integrity under a key/policy**, not honesty of
 | TOFU signer | Ship self-signed pack that verifies against embedded pubkey | `--require-signature` demands pinned `SAGE_SIGN_PUBLIC_KEY` / key ring |
 | Live-carcass presenter | Pass CI on unsealed journal | `--require-sealed` / policy `forbid_live_journal` |
 | Secret leaker via export | Ship API keys in evidence | Redact-before-hash + sanitize-on-close |
+| Careless sharer | Hand over evidence that still holds a key, personal data, or a local path the redaction policy missed | `sage scan` pre-share check (also run by `sage handoff`; `--fail-on-findings` blocks the kit). Opt-in detectors redact provider keys, JWTs, emails, card numbers, and high-entropy strings before hashing. The scan reports locations and rule ids, never values. It is pattern-based: a secret with no known shape can pass |
 | Split-brain writer | Two owners same `trace_id` | Trace registry + file locks |
+| Receipt substituter | Pass off a receipt from a different pack, key, or policy | Receipt binding: bundle hash and id, policy digest, and `expect_fingerprint` are checked against the freshly verified pack |
+| Policy downgrader | Verify under a weaker policy than the one requested | An explicit policy is never weakened to fit missing key material; missing material raises `HandoffSetupError` (exit 2) |
+| Release tamperer | Ship a modified wheel as an official release | Reproducible builds, `SHA256SUMS.json`, Sigstore signatures, and SLSA provenance; check with `scripts/verify_release.py` |
+| Attestation stripper | Delete `pack.json` (MAC and signature) so a pack verifies as an unattested journal | A pack without `pack.json` is refused when a key or signature is required (`SignatureMismatchError` if a signature is required); vector `pack/pack-json-missing` |
+| Unbound-field forger | Add or change fields the hashes do not cover (unknown span members, a non-normal span) | Stored spans and bundles must equal their normal form byte for byte (`docs/spec/FORMAT.md` section 3.3) |
+| Anchor splicer | Pair a valid `pack.json` with another journal, or edit its anchors | `bundle_hash`, `merkle_root`, and `witness_tip` in `pack.json` are checked against the journal and witness log; `redaction_count` is read from the hash-bound bundle only |
+| Malformed-input crasher | Crash or hang the verifier with hostile bytes | Every rejection is a typed `SageError` (exit 1 or 2); property tests, 53 conformance vectors, and scheduled atheris fuzzing (`fuzz/`) hold that contract |
 
 ## Explicit non-goals (what SAGE does **not** prove)
 
@@ -63,5 +71,14 @@ Fail-closed exit codes: `0` ok · `1` integrity/policy · `2` recoverable fault.
 
 - Secrets exist in memory until span close (sanitize-on-close mitigates after end).
 - Unpack rewrites local `blob_store` metadata → local seal hash may differ; custody uses pack `bundle_hash`.
+  The rewrite records the blob root relative to the working directory, or omits it, never as an
+  absolute path. Journals unpacked by 2.2 can still carry one; `sage scan` reports it as `local_path`.
+- Bundles sealed by SAGE 2.2 and earlier hold the producer's absolute blob store path in
+  `metadata.blob_store`. It cannot be removed without breaking their hashes.
 - Torn JSONL requires recovery, not verify.
+- Under the default `journal_durability="batch"`, a crash loses spans closed in the last group-commit
+  window (50 ms or 256 spans by default) plus any commit under way. If the writer falls behind,
+  recording blocks once 1024 spans wait, so that is the upper bound. Under `"close"`, an operating-system crash or power loss
+  loses everything since the last `flush_journal()`. Recovery returns the intact prefix; it never
+  invents or reorders spans. Use `"span"` when every closed span must survive a crash.
 - Multi-tenant deployments must isolate key rings; never commit key material.

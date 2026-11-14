@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import hashlib
 import hmac
 import json
@@ -9,10 +10,10 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-from sage.blobs import BLOB_MARKER, BlobStore, is_blob_ref, require_digest
+from sage.blobs import BLOB_MARKER, BlobStore, _record_blob_store, blob_store_hint, is_blob_ref, require_digest
 from sage.bundle_io import load_bundle
-from sage.errors import ChainIntegrityError
-from sage.journal import save_journal
+from sage.errors import ChainIntegrityError, SignatureMismatchError
+from sage.journal import load_jsonl_objects, save_journal
 from sage.merkle import chain_merkle_root, merkle_root
 from sage.schema import SCHEMA_VERSION
 
@@ -125,12 +126,9 @@ def attest_custody(payload: dict, key: bytes | str) -> str:
 
 
 def _sage_version() -> str:
-    try:
-        from importlib.metadata import version
+    from sage.version import __version__
 
-        return version("sage-incident-bundles")
-    except Exception:
-        return "unknown"
+    return __version__
 
 
 def _redaction_summary(bundle) -> dict:
@@ -144,6 +142,10 @@ def _redaction_summary(bundle) -> dict:
     }
 
 
+PACK_V2_REQUIRED = ("format", "bundle_hash", "blob_digests", "blob_merkle", "content_digest", "merkle_root",
+                    "witness_tip")
+
+
 def verify_pack_meta(
     meta: dict,
     *,
@@ -155,8 +157,16 @@ def verify_pack_meta(
     key_id: str | None = None,
     key_ring: str | Path | dict | None = None,
 ) -> None:
+    if not isinstance(meta, dict):
+        raise ChainIntegrityError("pack.json is not a JSON object")
+    if meta.get("format") == "sage.pack.v2":
+        missing = [name for name in PACK_V2_REQUIRED if meta.get(name) in (None, "")]
+        if missing:
+            raise ChainIntegrityError(f"pack.json missing required fields: {missing}")
     claimed = meta.get("content_digest")
-    if claimed and claimed != content_digest:
+    if not claimed:
+        raise ChainIntegrityError("pack.json missing content_digest")
+    if claimed != content_digest:
         raise ChainIntegrityError(
             f"pack content_digest mismatch: claimed={claimed!r} actual={content_digest!r}"
         )
@@ -195,7 +205,7 @@ def verify_pack_meta(
         from sage.signing import verify_signature
 
         if not sig:
-            raise ChainIntegrityError("pack missing ed25519 signature")
+            raise SignatureMismatchError("pack missing ed25519 signature")
         # require_signature ⇒ pinned key (TOFU refused unless allow_tofu_signature).
         verify_signature(
             custody_payload,
@@ -228,13 +238,15 @@ def pack_artifact(
 
     key = hmac_key if hmac_key is not None else os.environ.get("SAGE_PACK_KEY")
 
+    from sage.blobs import resolve_blob_root
+
     bundle = load_bundle(src, verify=True, rehydrate=False)
     digests = collect_bundle_blob_digests(bundle)
     meta = bundle.metadata or {}
     store = (
         blob_store
         if isinstance(blob_store, BlobStore)
-        else BlobStore(blob_store or meta.get("blob_store"))
+        else BlobStore(blob_store or resolve_blob_root({"bundle_id": bundle.bundle_id, "metadata": meta}))
     )
 
     with tempfile.TemporaryDirectory(prefix="sage-pack-") as tmp:
@@ -339,6 +351,25 @@ def pack_artifact(
     return out
 
 
+def _check_pack_anchors(meta: dict, bundle, journal: Path) -> None:
+    """The attested pack.json anchors must describe the packed journal, not just each other."""
+    if meta.get("bundle_hash") != bundle.audit.bundle_hash:
+        raise ChainIntegrityError(
+            f"pack.json bundle_hash does not match the packed journal: "
+            f"claimed={meta.get('bundle_hash')!r} actual={bundle.audit.bundle_hash!r}"
+        )
+    claimed_merkle = meta.get("merkle_root")
+    if claimed_merkle and claimed_merkle != chain_merkle_root(bundle.audit.chain):
+        raise ChainIntegrityError("pack.json merkle_root does not match the packed journal chain")
+    tip = str(meta.get("witness_tip") or "no_witness")
+    if tip != "no_witness":
+        from sage.witness import WITNESS_JSONL
+
+        records, rejected = load_jsonl_objects(journal / WITNESS_JSONL)
+        if rejected or not records or records[-1].get("record_hash") != tip:
+            raise ChainIntegrityError("pack.json witness_tip does not match the packed witness log")
+
+
 def _materialize_unpacked(
     artifact: Path,
     dest: Path,
@@ -360,6 +391,12 @@ def _materialize_unpacked(
     key = hmac_key if hmac_key is not None else os.environ.get("SAGE_PACK_KEY")
 
     meta: dict = {}
+    if verify_attestation and not meta_path.is_file():
+        # Every pack this library writes carries pack.json; without it no attestation or
+        # signature can be checked, so a requested check would silently pass.
+        if require_signature:
+            raise SignatureMismatchError("pack missing pack.json (signature cannot be checked)")
+        raise ChainIntegrityError("pack missing pack.json")
     if meta_path.exists():
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
         if verify_attestation:
@@ -408,7 +445,13 @@ def _materialize_unpacked(
     bundle = load_bundle(journal, verify=True, rehydrate=False)
     if not custody_hash:
         custody_hash = bundle.audit.bundle_hash
-    bundle.metadata["blob_store"] = str(store.root)
+    elif verify_attestation:
+        _check_pack_anchors(meta, bundle, journal)
+    hint = blob_store_hint(store.root)  # staging store: record portably, never remember it
+    if hint is None:
+        bundle.metadata.pop("blob_store", None)
+    else:
+        bundle.metadata["blob_store"] = hint
     bundle.metadata["pack_bundle_hash"] = custody_hash
     save_journal(bundle, journal)
     if write_witness:
@@ -426,6 +469,17 @@ def _materialize_unpacked(
         )
     return journal
 
+
+def _open_pack(pack: Path) -> tarfile.TarFile:
+    """Open a pack for reading after checking its gzip CRC32 and length trailer.
+
+    `tarfile` stops at the tar end marker and never reads the gzip trailer, so a damaged archive
+    could otherwise extract partially. Header fields such as the gzip mtime are not covered.
+    """
+    with gzip.open(pack, "rb") as stream:
+        while stream.read(1 << 20):
+            pass
+    return tarfile.open(pack, "r:gz")
 
 def unpack_artifact(
     pack_path: str | Path,
@@ -457,7 +511,7 @@ def unpack_artifact(
 
     if not quarantine:
         dest.mkdir(parents=True, exist_ok=True)
-        with tarfile.open(pack, "r:gz") as tar:
+        with _open_pack(pack) as tar:
             safe_extract_tar(tar, dest)
         return _materialize_unpacked(
             dest / "sage_artifact",
@@ -477,7 +531,7 @@ def unpack_artifact(
     with tempfile.TemporaryDirectory(prefix="sage-quarantine-") as tmp:
         staging = Path(tmp) / "stage"
         staging.mkdir()
-        with tarfile.open(pack, "r:gz") as tar:
+        with _open_pack(pack) as tar:
             safe_extract_tar(tar, staging)
         # Always materialize blobs inside staging so promote cannot rmtree an
         # external blob_root (e.g. verify()'s TemporaryDirectory /blobs).
@@ -513,7 +567,7 @@ def unpack_artifact(
 
         final_journal = dest / "sage_artifact" / "journal"
         bundle = load_bundle(final_journal, verify=True, rehydrate=False)
-        bundle.metadata["blob_store"] = str(final_blobs)
+        _record_blob_store(bundle.metadata, bundle.bundle_id, BlobStore(final_blobs))
         save_journal(bundle, final_journal)
         return final_journal
 

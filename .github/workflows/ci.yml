@@ -5,6 +5,9 @@ on:
     branches: [main, master]
   pull_request:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -18,8 +21,8 @@ jobs:
         python-version: ["3.10", "3.12"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install
@@ -38,3 +41,148 @@ jobs:
         run: python examples/auditor_kit.py
       - name: Strict handoff smoke
         run: python scripts/ci_smoke.py
+
+  langchain-integration:
+    runs-on: ubuntu-latest
+    env:
+      LANGCHAIN_TRACING_V2: "false"
+      LANGSMITH_TRACING: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install (pinned langchain-core + langgraph)
+        run: pip install -e ".[dev,langchain,langgraph]" -c constraints/langgraph.txt
+      - name: Record tested dependency set
+        run: pip freeze | grep -iE "langchain|langgraph|langsmith|pydantic|sage-incident"
+      - name: Real LangChain / LangGraph integration + demo tests
+        run: python -m pytest tests/integration_langchain tests/integration_langgraph tests/test_redaction_canaries.py tests/test_handoff_binding.py -q --tb=short
+      - name: Consultancy demo (all scenarios, both modes)
+        run: |
+          for s in success tool-error tool-timeout; do
+            for m in sync async; do
+              python examples/consultancy_demo.py --scenario "$s" --mode "$m" --out "demo-runs/$s-$m"
+            done
+          done
+
+  otel-agents-integration:
+    # OTLP protobuf import, OpenAI Agents SDK and PydanticAI adapters. Separate from the LangGraph
+    # job: openai-agents 0.24.0 needs websockets<17, constraints/langgraph.txt pins 17.4.
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_AGENTS_DISABLE_TRACING: "false"
+      LOGFIRE_SEND_TO_LOGFIRE: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install (pinned opentelemetry-proto + openai-agents + pydantic-ai-slim)
+        run: pip install -e ".[dev,otlp,openai-agents,pydantic-ai]" "opentelemetry-exporter-otlp-proto-common==1.45.2" -c constraints/otel-agents.txt
+      - name: Record tested dependency set
+        run: pip freeze | grep -iE "opentelemetry|protobuf|openai|pydantic|websockets|sage-incident"
+      - name: Real OTLP / OpenAI Agents / PydanticAI integration tests
+        run: python -m pytest tests/integration_otlp tests/integration_openai_agents tests/integration_pydantic_ai tests/test_otlp_import.py tests/test_adapters_optional_deps.py -q --tb=short
+
+  langchain-version-matrix:
+    # Older langchain-core minors with the pinned LangGraph. Resolved freely (no constraints file);
+    # the pip freeze step records what was tested.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        langchain-core: ["1.6.13", "1.7.7"]
+    env:
+      LANGCHAIN_TRACING_V2: "false"
+      LANGSMITH_TRACING: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]" "langchain-core==${{ matrix.langchain-core }}" "langgraph==1.2.21"
+      - name: Record tested dependency set
+        run: pip freeze | grep -iE "langchain|langgraph|langsmith|pydantic"
+      - name: Real LangChain / LangGraph integration tests
+        run: python -m pytest tests/integration_langchain tests/integration_langgraph -q --tb=short
+
+  journal-benchmark:
+    # Measurement, not an SLA: per-span recording cost by durability mode and payload size.
+    runs-on: ubuntu-latest
+    env:
+      LANGCHAIN_TRACING_V2: "false"
+      LANGSMITH_TRACING: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install (pinned langchain-core)
+        run: pip install -e ".[dev,langchain]" -c constraints/langchain.txt
+      - name: Journal per-span cost (durability x payload size)
+        run: >
+          python scripts/measure_overhead.py --mode journal --durability all
+          --spans 2000 --span-mode-spans 500 --payload-bytes 64,512,4096,32768
+          --max-default-median-ms 2.0 --out benchmark/journal.json
+      - name: Consultancy workflow overhead (each durability mode)
+        run: >
+          python scripts/measure_overhead.py --mode workflow --durability all
+          --runs 100 --warmup 10 --out benchmark/workflow.json
+      - name: Upload benchmark JSON
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: journal-benchmark
+          path: benchmark/*.json
+          if-no-files-found: error
+
+  wheel-recipient:
+    runs-on: ubuntu-latest
+    env:
+      LANGCHAIN_TRACING_V2: "false"
+      LANGSMITH_TRACING: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install producer tooling
+        run: pip install -e ".[dev,langchain]" -c constraints/langchain.txt
+      - name: Build wheel + sdist
+        run: python -m build
+      - name: Installed-wheel recipient verify (offline)
+        run: python scripts/recipient_check.py --dist dist --work "$RUNNER_TEMP/recipient"
+
+  fuzz-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]" "atheris==3.0.0"
+      - name: Short atheris run per harness (the long run is fuzz.yml)
+        run: |
+          python fuzz/write_corpus.py
+          for harness in fuzz_pack fuzz_journal fuzz_policy fuzz_receipt; do
+            python "fuzz/${harness}.py" "fuzz/corpus/${harness}" -runs=3000 -timeout=20
+          done
+      - name: Conformance vectors (implementation and spec-only reference)
+        run: |
+          python tests/vectors/run_vectors.py
+          python -I tests/vectors/reference_check.py
+
+  reproducible-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install build
+        run: pip install build
+      - name: Build twice from separate clean exports and compare
+        run: python scripts/repro_check.py

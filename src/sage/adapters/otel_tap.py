@@ -26,6 +26,7 @@ class OpenTelemetryTap:
         framework: str = "opentelemetry",
         auto_export: str | Path | None = None,
         journal_dir: str | Path | None = None,
+        journal_durability: str | None = None,
     ) -> None:
         self.recorder = recorder or SageRecorder(
             title="otel-tap",
@@ -33,6 +34,7 @@ class OpenTelemetryTap:
             framework=framework,
             auto_export=auto_export,
             journal_dir=journal_dir,
+            journal_durability=journal_durability,
             register_trace=True,
         )
         self._seen: set[str] = set()
@@ -59,29 +61,7 @@ class OpenTelemetryTap:
             converted.end_time = utc_now()
         self.recorder.bundle.add_span(converted)
         self.recorder._open_spans.discard(converted.span_id)
-        if self.recorder.journal_dir is not None and converted.span_id not in self.recorder._journal_appended:
-            from sage.journal import append_live_span, write_live_manifest
-
-            _disk, link = append_live_span(
-                self.recorder.journal_dir,
-                converted,
-                index=self.recorder._journal_index,
-                prev_hash=self.recorder._chain_prev_hash,
-                blob_store=self.recorder.blob_store,
-                redaction_policy=self.recorder.bundle.redaction_policy,
-                blob_threshold=self.recorder.blob_threshold,
-                content_by_id=self.recorder._journal_content,
-            )
-            self.recorder._journal_content[converted.span_id] = link["content_hash"]
-            self.recorder._chain_prev_hash = link["hash"]
-            self.recorder._journal_index += 1
-            self.recorder._journal_appended.add(converted.span_id)
-            write_live_manifest(
-                self.recorder.bundle,
-                self.recorder.journal_dir,
-                live=True,
-                chain_tip=self.recorder._chain_prev_hash,
-            )
+        self.recorder._journal_append(converted)
         self._seen.add(converted.span_id)
         return converted.span_id
 
@@ -98,29 +78,7 @@ class OpenTelemetryTap:
             span.trace_id = self.recorder.bundle.bundle_id
             self.recorder.bundle.add_span(span)
             self.recorder._open_spans.discard(span.span_id)
-            if self.recorder.journal_dir is not None and span.span_id not in self.recorder._journal_appended:
-                from sage.journal import append_live_span, write_live_manifest
-
-                _disk, link = append_live_span(
-                    self.recorder.journal_dir,
-                    span,
-                    index=self.recorder._journal_index,
-                    prev_hash=self.recorder._chain_prev_hash,
-                    blob_store=self.recorder.blob_store,
-                    redaction_policy=self.recorder.bundle.redaction_policy,
-                    blob_threshold=self.recorder.blob_threshold,
-                    content_by_id=self.recorder._journal_content,
-                )
-                self.recorder._journal_content[span.span_id] = link["content_hash"]
-                self.recorder._chain_prev_hash = link["hash"]
-                self.recorder._journal_index += 1
-                self.recorder._journal_appended.add(span.span_id)
-                write_live_manifest(
-                    self.recorder.bundle,
-                    self.recorder.journal_dir,
-                    live=True,
-                    chain_tip=self.recorder._chain_prev_hash,
-                )
+            self.recorder._journal_append(span)
             self._seen.add(span.span_id)
         return len(self.recorder.bundle.spans) - before
 
@@ -140,10 +98,12 @@ def attach_otel_tap(
     trace_id: str | None = None,
     auto_export: str | Path | None = None,
     journal_dir: str | Path | None = None,
+    journal_durability: str | None = None,
 ) -> OpenTelemetryTap:
     """Factory: attach point for existing OTel export pipelines."""
     return OpenTelemetryTap(
         trace_id=trace_id,
         auto_export=auto_export,
         journal_dir=journal_dir,
+        journal_durability=journal_durability,
     )

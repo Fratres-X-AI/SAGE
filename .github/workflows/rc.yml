@@ -1,0 +1,94 @@
+name: release-candidate
+
+# Release-candidate gates. Weekly, on demand, and on PRs whose head branch is world-class/rc-*.
+# - nuclear-scale: the forensics gauntlet (tests/test_nuclear_stress.py) at about ten times its
+#   default scale.
+# - release-dry-run: the release workflow's build steps without signing or publishing, then the
+#   recipient checks on the result.
+
+on:
+  schedule:
+    - cron: "43 5 * * 2"
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nuclear-scale:
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'world-class/rc-')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      SAGE_NUCLEAR_STREAM_MB: "1024"
+      SAGE_NUCLEAR_WORKERS: "128"
+      SAGE_NUCLEAR_CAS_OPS: "2048"
+      SAGE_NUCLEAR_PACKS: "64"
+      SAGE_NUCLEAR_FANOUT: "2000"
+      SAGE_NUCLEAR_MAX_S: "1500"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Nuclear gauntlet at scale
+        run: python -m pytest tests/test_nuclear_stress.py -m slow -v -s --tb=short
+
+  release-dry-run:
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'world-class/rc-')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install build tooling
+        run: pip install -e ".[dev]" build
+      - name: Release gate
+        run: python scripts/release_check.py
+      - name: Build sdist, wheel, and single-file verifier (as release.yml does)
+        run: |
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          python -m build
+          python scripts/build_verifier.py --out dist
+          python scripts/generate_sbom.py dist/sbom.spdx.json
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          dist = Path("dist")
+          out = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(dist.iterdir()) if p.is_file()}
+          Path("dist/SHA256SUMS.json").write_text(json.dumps(out, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          print(json.dumps(out, indent=2, sort_keys=True))
+          PY
+      - name: Checksums (signatures and provenance exist only for tagged releases)
+        run: |
+          VERSION="$(python -c 'import sage; print(sage.__version__)')"
+          python scripts/verify_release.py dist --tag "v${VERSION}" --skip sigstore --skip provenance
+      - name: Single-file verifier on the conformance kits, without SAGE installed
+        run: |
+          python -m venv "$RUNNER_TEMP/bare"
+          PYZ="$(ls dist/*.pyz)"
+          KEYS="--hmac-key-file tests/vectors/keys/hmac.key --public-key-file tests/vectors/keys/ed25519.public.txt"
+          "$RUNNER_TEMP/bare/bin/python" -I "$PYZ" tests/vectors/kit/valid $KEYS
+          for bad in receipt-for-other-pack receipt-mac-mismatch receipt-other-key receipt-unsigned; do
+            if "$RUNNER_TEMP/bare/bin/python" -I "$PYZ" "tests/vectors/kit/$bad" $KEYS > /dev/null 2>&1; then
+              echo "single-file verifier accepted kit/$bad"; exit 1
+            fi
+          done
+      - name: Upload dry-run dist
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rc-dry-run-dist
+          path: dist/*
+          retention-days: 14

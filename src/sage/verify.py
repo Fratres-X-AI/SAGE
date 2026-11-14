@@ -1,19 +1,31 @@
 from __future__ import annotations
 
+import gzip
 import json
+import tarfile
 import tempfile
+import zlib
 from pathlib import Path
 from typing import Any, Literal
 
 from sage.blobs import BlobStore
 from sage.bundle_io import load_bundle
 from sage.errors import BlobIntegrityError, ChainIntegrityError, FaultRecoveryError
-from sage.journal import is_journal_path, journal_root, verify_journal
+from sage.journal import MALFORMED_INPUT_ERRORS, is_journal_path, journal_root, verify_journal
 from sage.merkle import merkle_root
 from sage.pack import collect_bundle_blob_digests, unpack_artifact
 from sage.policy import VerifyPolicy, apply_policy, load_policy
 
 ArtifactKind = Literal["bundle", "journal", "pack"]
+
+MALFORMED_ARTIFACT_ERRORS: tuple[type[BaseException], ...] = (
+    *MALFORMED_INPUT_ERRORS,
+    OverflowError,  # a corrupted tar header timestamp
+    tarfile.TarError,
+    zlib.error,
+    EOFError,
+    gzip.BadGzipFile,
+)
 
 
 def detect_artifact_kind(path: str | Path) -> ArtifactKind:
@@ -40,7 +52,9 @@ def verify_blob_inventory(
     """Fail-closed: every CAS ref present and content-addressed (streaming verify)."""
     digests = sorted(collect_bundle_blob_digests(bundle))
     meta = bundle.metadata or {}
-    root = blob_root or meta.get("blob_store")
+    from sage.blobs import resolve_blob_root
+
+    root = blob_root or resolve_blob_root({"bundle_id": bundle.bundle_id, "metadata": meta})
     if not digests:
         return {"ok": True, "blob_count": 0, "blob_merkle": merkle_root([]), "verified": []}
     if not root:
@@ -71,12 +85,9 @@ def verify_blob_inventory(
 
 
 def _sage_version() -> str:
-    try:
-        from importlib.metadata import version
+    from sage.version import __version__
 
-        return version("sage-incident-bundles")
-    except Exception:
-        return "unknown"
+    return __version__
 
 
 def verify_artifact(
@@ -164,9 +175,7 @@ def verify_artifact(
                     or bundle.audit.bundle_hash
                 )
                 report["local_bundle_hash"] = bundle.audit.bundle_hash
-                report["redaction_count"] = int(
-                    (pack_meta.get("redaction_summary") or {}).get("redaction_count") or 0
-                )
+                report["redaction_count"] = len(bundle.redactions or [])
                 if check_witness:
                     from sage.witness import verify_witness_log
 
@@ -253,3 +262,8 @@ def verify_artifact(
         report["error"] = str(exc)
         report["recoverable"] = False
         raise
+    except MALFORMED_ARTIFACT_ERRORS as exc:
+        report["ok"] = False
+        report["error"] = f"malformed artifact: {type(exc).__name__}: {exc}"
+        report["recoverable"] = False
+        raise ChainIntegrityError(report["error"]) from exc

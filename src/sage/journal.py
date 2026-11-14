@@ -1,23 +1,29 @@
 from __future__ import annotations
 
+import atexit
 import copy
 import json
 import os
 import tempfile
+import threading
+import time
+import weakref
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from sage.audit import (
     build_audit_chain,
     compute_bundle_hash,
     order_spans,
     redact_value,
+    require_normal_form,
     require_verified,
     sha256_digest,
 )
-from sage.blobs import BlobStore, DEFAULT_THRESHOLD, apply_offload_to_incident
-from sage.errors import ChainIntegrityError, FaultRecoveryError
+from sage.blobs import BlobStore, DEFAULT_THRESHOLD, DeferredSyncStore, offload_span
+from sage.errors import ChainIntegrityError, FaultRecoveryError, JournalWriteError, SageError
+from sage.locks import read_text_file, replace_file
 from sage.fault import CrashBoundary, RecoveryReport
 from sage.schema import AuditBlock, BundleSource, IncidentBundle, SCHEMA_VERSION, SageSpan, utc_now
 
@@ -26,6 +32,32 @@ CHAIN_JSONL = "chain.jsonl"
 MANIFEST_NAME = "manifest.sage.json"
 MANIFEST_WAL = "manifest.wal.jsonl"
 ZERO_HASH = "0" * 64
+
+# Live-journal durability modes (see README "Live journal durability").
+DURABILITY_SPAN = "span"  # fsync every closed span before end_span returns
+DURABILITY_BATCH = "batch"  # group commit (fsync) from a background writer thread
+DURABILITY_CLOSE = "close"  # background writes, fsync only at flush / seal
+DURABILITY_MODES = (DURABILITY_SPAN, DURABILITY_BATCH, DURABILITY_CLOSE)
+DEFAULT_DURABILITY = DURABILITY_BATCH
+DURABILITY_ENV = "SAGE_JOURNAL_DURABILITY"
+# A group commit starts when the oldest uncommitted span is this old, or this many spans wait.
+DEFAULT_BATCH_INTERVAL_MS = 50
+DEFAULT_BATCH_MAX_SPANS = 256
+# Hard bound: end_span blocks once this many batches' worth of spans are uncommitted.
+MAX_UNCOMMITTED_BATCHES = 4
+_WRITER_IDLE_EXIT_S = 0.5
+_LINESEP = os.linesep.encode("ascii")
+
+
+def resolve_durability(mode: str | None = None) -> str:
+    """Validate a durability mode. `None` means `$SAGE_JOURNAL_DURABILITY`, then the default."""
+    chosen = mode if mode is not None else (os.environ.get(DURABILITY_ENV) or DEFAULT_DURABILITY)
+    chosen = str(chosen).strip().lower()
+    if chosen not in DURABILITY_MODES:
+        raise ValueError(
+            f"unknown journal durability {chosen!r}; expected one of {', '.join(DURABILITY_MODES)}"
+        )
+    return chosen
 
 
 @dataclass
@@ -100,28 +132,23 @@ def prepare_span_for_disk(
     blob_store: BlobStore | None = None,
     redaction_policy: dict[str, Any] | None = None,
     blob_threshold: int = DEFAULT_THRESHOLD,
+    blob_sync: bool = True,
 ) -> SageSpan:
-    """Redact secrets and CAS-offload large payloads before any journal append."""
-    from sage.audit import DEFAULT_REDACTION_KEYS, DEFAULT_VALUE_PATTERNS
-    from sage.schema import IncidentBundle
+    """Redact secrets and CAS-offload large payloads before any journal append.
 
-    clone = SageSpan.from_dict(copy.deepcopy(span.to_dict()))
-    policy = redaction_policy or {}
-    fragments = tuple(policy.get("key_fragments") or DEFAULT_REDACTION_KEYS)
-    patterns = tuple(policy.get("value_patterns") or DEFAULT_VALUE_PATTERNS)
-    clone.inputs = redact_value(clone.inputs, key_fragments=fragments, value_patterns=patterns)
-    clone.outputs = redact_value(clone.outputs, key_fragments=fragments, value_patterns=patterns)
-    clone.attributes = redact_value(clone.attributes, key_fragments=fragments, value_patterns=patterns)
-    clone.data = redact_value(clone.data, key_fragments=fragments, value_patterns=patterns)
-    clone.events = [
-        redact_value(ev, key_fragments=fragments, value_patterns=patterns) if isinstance(ev, dict) else ev
-        for ev in (clone.events or [])
-    ]
+    With ``blob_sync=False`` offloaded objects are fsynced later by ``BlobStore.sync_pending()``.
+    """
+    from sage.audit import redact_span, resolve_redaction_rules
+
+    # No deep copy: `redact_span` rebuilds every container the clone holds, so the clone never
+    # shares a mutable container with the caller's span.
+    clone = SageSpan.from_dict(span.to_dict())
+    fragments, patterns = resolve_redaction_rules(redaction_policy)
+    redact_span(clone, key_fragments=fragments, value_patterns=patterns)
 
     if blob_store is not None:
-        shell = IncidentBundle(title="tmp", spans=[clone], metadata={})
-        apply_offload_to_incident(shell, blob_store, threshold=blob_threshold)
-        clone = shell.spans[0]
+        target = blob_store if blob_sync else DeferredSyncStore(blob_store)
+        offload_span(clone, target, threshold=blob_threshold)  # type: ignore[arg-type]
     return clone
 
 
@@ -131,6 +158,10 @@ def apply_sanitized_fields(target: SageSpan, prepared: SageSpan) -> None:
     target.outputs = prepared.outputs
     target.attributes = prepared.attributes
     target.data = prepared.data
+    target.events = prepared.events
+    target.name = prepared.name
+    target.failure_context = prepared.failure_context
+    target.error = prepared.error
 
 
 def sanitize_span_inplace(
@@ -199,15 +230,16 @@ def attach_enriched_audit(bundle: IncidentBundle) -> IncidentBundle:
     return bundle
 
 
-def _atomic_write_text(path: Path, text: str) -> None:
+def _atomic_write_text(path: Path, text: str, *, fsync: bool = True) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=".sage-w-", suffix=".tmp", dir=str(path.parent))
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(text)
             handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(tmp, str(path))
+            if fsync:
+                os.fsync(handle.fileno())
+        replace_file(tmp, str(path))
     except Exception:
         Path(tmp).unlink(missing_ok=True)
         raise
@@ -237,7 +269,7 @@ def save_journal(bundle: IncidentBundle, directory: str | Path) -> JournalPaths:
                 handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(tmp, str(paths.spans))
+        replace_file(tmp, str(paths.spans))
     except Exception:
         Path(tmp).unlink(missing_ok=True)
         raise
@@ -250,7 +282,7 @@ def save_journal(bundle: IncidentBundle, directory: str | Path) -> JournalPaths:
                 handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(c_tmp, str(paths.chain))
+        replace_file(c_tmp, str(paths.chain))
     except Exception:
         Path(c_tmp).unlink(missing_ok=True)
         raise
@@ -300,6 +332,26 @@ def append_chain_link(directory: str | Path, link: dict[str, Any]) -> None:
     append_jsonl_line(Path(directory) / CHAIN_JSONL, link)
 
 
+def _jsonl_line(obj: dict[str, Any]) -> str:
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"))
+
+
+def encode_span_record(span: SageSpan) -> tuple[str, str]:
+    """Return `(content_hash, spans.jsonl line)` for a span from one serialization where possible.
+
+    The content hash is over canonical JSON (`ensure_ascii=False`); the journal line is the same
+    JSON with `ensure_ascii=True`. The two texts are identical when the canonical form is pure
+    ASCII, which is the common case, so the span is serialized once instead of twice.
+    """
+    import hashlib
+
+    payload = span.to_dict()
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    content_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    line = canonical if canonical.isascii() else _jsonl_line(payload)
+    return content_hash, line
+
+
 def append_live_span(
     directory: str | Path,
     span: SageSpan,
@@ -312,7 +364,11 @@ def append_live_span(
     content_by_id: dict[str, str] | None = None,
     disk_span: SageSpan | None = None,
 ) -> tuple[SageSpan, dict[str, Any]]:
-    """Redact/offload, append span + chain link. Returns (disk_span, link)."""
+    """Redact/offload, append span + chain link (fsync each). Returns (disk_span, link).
+
+    Synchronous, one span at a time. `SageRecorder` uses `LiveJournalWriter` instead, which
+    writes the same records under a selectable durability mode.
+    """
     root = Path(directory)
     prepared = disk_span or prepare_span_for_disk(
         span,
@@ -332,6 +388,356 @@ def append_live_span(
     return prepared, link
 
 
+def live_manifest_header(bundle: IncidentBundle, *, live: bool = True) -> dict[str, Any]:
+    """Every live-manifest field that does not change when a span closes.
+
+    The result shares no mutable container with the bundle, so a writer thread may serialize it
+    while the recording thread keeps mutating the bundle.
+    """
+    from sage.audit import _scrub_string, resolve_redaction_rules
+
+    fragments, patterns = resolve_redaction_rules(bundle.redaction_policy)
+    title = _scrub_string(bundle.title, path="title", redacted_paths=None, value_patterns=patterns)
+    hint = bundle.root_cause_hint
+    if isinstance(hint, str):
+        hint = _scrub_string(hint, path="root_cause_hint", redacted_paths=None, value_patterns=patterns)
+    elif hint is not None:
+        hint = copy.deepcopy(hint)
+    return {
+        "schema_version": bundle.schema_version,
+        "bundle_id": bundle.bundle_id,
+        "title": title or bundle.title,
+        "created_at": bundle.created_at,
+        "source": bundle.source.to_dict(),
+        "status": "partial",
+        "root_cause_hint": hint,
+        "metadata": {
+            **redact_value(bundle.metadata, key_fragments=fragments, value_patterns=patterns),
+            "storage": "sage.journal.v1",
+            "spans_file": SPANS_JSONL,
+            "chain_file": CHAIN_JSONL,
+            "live_recording": live,
+            "manifest_wal": MANIFEST_WAL,
+        },
+        "redactions": copy.deepcopy(bundle.redactions),
+        "redaction_policy": copy.deepcopy(bundle.redaction_policy),
+        "audit": {"chain": [], "bundle_hash": ""},
+        "chain_file": CHAIN_JSONL,
+        "spans_file": SPANS_JSONL,
+    }
+
+
+@dataclass
+class LiveManifestSnapshot:
+    """What the live manifest should say once the spans queued so far are on disk."""
+
+    header: dict[str, Any]
+    spans: list[SageSpan]  # the bundle's span list; only the first `span_count` entries are read
+    span_count: int
+    chain_tip: str
+    wal_ts: str
+
+    def to_manifest(self) -> dict[str, Any]:
+        return {
+            **self.header,
+            "span_count": self.span_count,
+            "span_ids": [s.span_id for s in self.spans[: self.span_count]],
+            "chain_tip": self.chain_tip,
+        }
+
+
+def snapshot_live_manifest(
+    bundle: IncidentBundle,
+    *,
+    live: bool = True,
+    chain_tip: str | None = None,
+    header: dict[str, Any] | None = None,
+) -> LiveManifestSnapshot:
+    return LiveManifestSnapshot(
+        header=header if header is not None else live_manifest_header(bundle, live=live),
+        spans=bundle.spans,
+        span_count=len(bundle.spans),
+        chain_tip=chain_tip or ZERO_HASH,
+        wal_ts=utc_now(),
+    )
+
+
+def _append_bytes(path: Path, data: bytes, *, fsync: bool) -> None:
+    with open(path, "ab") as handle:
+        handle.write(data)
+        handle.flush()
+        if fsync:
+            os.fsync(handle.fileno())
+
+
+def _fsync_existing(path: Path) -> None:
+    if not path.exists():
+        return
+    with open(path, "ab") as handle:
+        os.fsync(handle.fileno())
+
+
+def _commit_live_records(
+    root: Path,
+    records: list[tuple[bytes, bytes]],
+    snapshot: LiveManifestSnapshot | None,
+    *,
+    fsync: bool,
+) -> None:
+    """Append span lines, then chain links, then the manifest WAL record, then replace the manifest.
+
+    The order is the crash contract: on disk, spans >= chain links >= manifest tip. Recovery
+    truncates to the chain, so a crash between any two steps loses nothing that was complete.
+    """
+    if records:
+        _append_bytes(root / SPANS_JSONL, b"".join(r[0] for r in records), fsync=fsync)
+        _append_bytes(root / CHAIN_JSONL, b"".join(r[1] for r in records), fsync=fsync)
+    if snapshot is not None:
+        manifest = snapshot.to_manifest()
+        # WAL first (append-only), then atomic tip replace — power-loss safe.
+        wal_line = _jsonl_line({**manifest, "wal_ts": snapshot.wal_ts})
+        _append_bytes(root / MANIFEST_WAL, wal_line.encode("utf-8") + _LINESEP, fsync=fsync)
+        # Live manifests are intentionally unsealed.
+        _atomic_write_text(
+            root / MANIFEST_NAME, json.dumps(manifest, indent=2, sort_keys=True), fsync=fsync
+        )
+
+
+_OPEN_WRITERS: "weakref.WeakSet[LiveJournalWriter]" = weakref.WeakSet()
+
+
+def _flush_writers_at_exit() -> None:
+    """Commit what a recorder left queued when the interpreter exits without a seal."""
+    failure: BaseException | None = None
+    for writer in list(_OPEN_WRITERS):
+        try:
+            writer.close()
+        except BaseException as exc:
+            failure = exc
+    if failure is not None:
+        raise failure
+
+
+atexit.register(_flush_writers_at_exit)
+
+
+class LiveJournalWriter:
+    """Writes live-journal records under one durability mode. Thread-safe.
+
+    - `span`: `append` commits and fsyncs in the calling thread (four fsyncs per span). Nothing
+      that `append` returned for can be lost.
+    - `batch`: `append` queues the record; a background thread group-commits with fsync when the
+      oldest queued span is `batch_interval_ms` old or `batch_max_spans` are queued. A crash loses
+      at most the spans that were queued or in the commit under way.
+    - `close`: like `batch` but without fsync until `flush()` / `close()`. A process crash loses
+      what `batch` would; an operating-system crash or power loss can lose anything written since
+      the last `flush()`.
+
+    `append` blocks once `max_uncommitted` spans are waiting, so the loss window is bounded even
+    when the disk is slower than the recorder. A failure in the background thread is raised from
+    the next `append` / `flush` and from `close`; it is never dropped.
+    """
+
+    def __init__(
+        self,
+        directory: str | Path,
+        *,
+        durability: str | None = None,
+        batch_interval_ms: float = DEFAULT_BATCH_INTERVAL_MS,
+        batch_max_spans: int = DEFAULT_BATCH_MAX_SPANS,
+        max_uncommitted: int | None = None,
+        pre_commit: Callable[[], None] | None = None,
+    ) -> None:
+        self.root = Path(directory)
+        self.durability = resolve_durability(durability)
+        if batch_interval_ms < 0:
+            raise ValueError("batch_interval_ms must be >= 0")
+        if batch_max_spans < 1:
+            raise ValueError("batch_max_spans must be >= 1")
+        self.batch_interval_s = float(batch_interval_ms) / 1000.0
+        self.batch_max_spans = int(batch_max_spans)
+        self.max_uncommitted = int(
+            max_uncommitted if max_uncommitted is not None else self.batch_max_spans * MAX_UNCOMMITTED_BATCHES
+        )
+        if self.max_uncommitted < 1:
+            raise ValueError("max_uncommitted must be >= 1")
+        # Runs before each commit (the recorder uses it to fsync blobs the queued spans refer to).
+        self._pre_commit = pre_commit
+        self._cond = threading.Condition()
+        self._io_lock = threading.Lock()
+        self._pending: list[tuple[bytes, bytes]] = []
+        self._pending_manifest: LiveManifestSnapshot | None = None
+        self._oldest_pending_at = 0.0
+        self._in_flight = 0
+        self._urgent = False
+        self._closed = False
+        self._error: BaseException | None = None
+        self._error_raised_at_close = False
+        self._unsynced = False  # close mode: data written since the last fsync
+        self._thread: threading.Thread | None = None
+        self.commits = 0
+        self.root.mkdir(parents=True, exist_ok=True)
+        _OPEN_WRITERS.add(self)
+
+    # -- public API ---------------------------------------------------------------------------
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def write_manifest(self, snapshot: LiveManifestSnapshot) -> None:
+        """Write the manifest now, durably, in the calling thread (used when recording starts)."""
+        self.flush(sync=False)
+        with self._io_lock:
+            _commit_live_records(self.root, [], snapshot, fsync=True)
+            self.commits += 1
+
+    def append(self, span_line: str, chain_line: str, snapshot: LiveManifestSnapshot | None) -> None:
+        record = (span_line.encode("utf-8") + _LINESEP, chain_line.encode("utf-8") + _LINESEP)
+        if self.durability == DURABILITY_SPAN:
+            with self._cond:
+                self._raise_if_unusable()
+            with self._io_lock:
+                if self._pre_commit is not None:
+                    self._pre_commit()
+                _commit_live_records(self.root, [record], snapshot, fsync=True)
+                self.commits += 1
+            return
+        with self._cond:
+            self._raise_if_unusable()
+            while len(self._pending) + self._in_flight >= self.max_uncommitted:
+                self._urgent = True
+                self._ensure_thread()
+                self._cond.notify_all()
+                self._cond.wait()
+                self._raise_if_unusable()
+            if not self._pending:
+                self._oldest_pending_at = time.monotonic()
+            self._pending.append(record)
+            if snapshot is not None:
+                self._pending_manifest = snapshot
+            self._ensure_thread()
+            if len(self._pending) == 1 or len(self._pending) >= self.batch_max_spans:
+                self._cond.notify_all()
+
+    def flush(self, *, sync: bool = True) -> None:
+        """Block until every appended record is committed. With `sync`, also fsync (`close` mode)."""
+        with self._cond:
+            self._raise_if_failed()
+            while self._pending or self._in_flight:
+                self._urgent = True
+                self._ensure_thread()
+                self._cond.notify_all()
+                self._cond.wait()
+                self._raise_if_failed()
+        if sync:
+            self._sync_unsynced()
+
+    def close(self) -> None:
+        """Flush, fsync, and stop the writer thread. Raises a pending writer failure once."""
+        try:
+            if not self._closed:
+                self.flush(sync=True)
+        except JournalWriteError:
+            if self._error_raised_at_close:
+                return
+            self._error_raised_at_close = True
+            raise
+        finally:
+            with self._cond:
+                self._closed = True
+                thread = self._thread
+                self._cond.notify_all()
+            if thread is not None and thread is not threading.current_thread():
+                thread.join()
+            _OPEN_WRITERS.discard(self)
+
+    # -- internals ----------------------------------------------------------------------------
+
+    def _raise_if_failed(self) -> None:
+        if self._error is not None:
+            raise JournalWriteError(
+                f"live journal writer failed under {self.root}: {self._error!r}; "
+                "spans recorded after the failure are not on disk"
+            ) from self._error
+
+    def _raise_if_unusable(self) -> None:
+        self._raise_if_failed()
+        if self._closed:
+            raise JournalWriteError(f"live journal writer for {self.root} is closed")
+
+    def _ensure_thread(self) -> None:
+        # Caller holds self._cond.
+        if self._thread is None and self._error is None:
+            self._thread = threading.Thread(
+                target=self._run, name="sage-journal-writer", daemon=True
+            )
+            self._thread.start()
+
+    def _sync_unsynced(self) -> None:
+        with self._io_lock:
+            if not self._unsynced:
+                return
+            try:
+                if self._pre_commit is not None:
+                    self._pre_commit()
+                for name in (SPANS_JSONL, CHAIN_JSONL, MANIFEST_WAL, MANIFEST_NAME):
+                    _fsync_existing(self.root / name)
+                self._unsynced = False
+            except BaseException as exc:
+                with self._cond:
+                    if self._error is None:
+                        self._error = exc
+                self._raise_if_failed()
+
+    def _run(self) -> None:
+        fsync = self.durability == DURABILITY_BATCH
+        while True:
+            with self._cond:
+                while True:
+                    if self._pending:
+                        age = time.monotonic() - self._oldest_pending_at
+                        if (
+                            self._urgent
+                            or self._closed
+                            or len(self._pending) >= self.batch_max_spans
+                            or age >= self.batch_interval_s
+                        ):
+                            break
+                        self._cond.wait(timeout=self.batch_interval_s - age)
+                        continue
+                    self._urgent = False
+                    if self._closed or not self._cond.wait(timeout=_WRITER_IDLE_EXIT_S):
+                        if not self._pending:
+                            self._thread = None
+                            self._cond.notify_all()
+                            return
+                records = self._pending
+                snapshot = self._pending_manifest
+                self._pending = []
+                self._pending_manifest = None
+                self._in_flight = len(records)
+            try:
+                with self._io_lock:
+                    if self._pre_commit is not None:
+                        self._pre_commit()
+                    _commit_live_records(self.root, records, snapshot, fsync=fsync)
+                    self.commits += 1
+                    if not fsync:
+                        self._unsynced = True
+            except BaseException as exc:  # surfaced by the next append / flush / close
+                with self._cond:
+                    self._error = exc
+                    self._in_flight = 0
+                    self._pending = []
+                    self._thread = None
+                    self._cond.notify_all()
+                return
+            with self._cond:
+                self._in_flight = 0
+                self._cond.notify_all()
+
+
 def write_live_manifest(
     bundle: IncidentBundle,
     directory: str | Path,
@@ -339,41 +745,12 @@ def write_live_manifest(
     live: bool = True,
     chain_tip: str | None = None,
 ) -> Path:
+    """Write the live manifest now (WAL record + atomic replace, both fsynced)."""
     root = Path(directory)
     root.mkdir(parents=True, exist_ok=True)
-    path = root / MANIFEST_NAME
-    tip = chain_tip or ZERO_HASH
-    manifest = {
-        "schema_version": bundle.schema_version,
-        "bundle_id": bundle.bundle_id,
-        "title": bundle.title,
-        "created_at": bundle.created_at,
-        "source": bundle.source.to_dict(),
-        "status": "partial",
-        "root_cause_hint": bundle.root_cause_hint,
-        "metadata": {
-            **bundle.metadata,
-            "storage": "sage.journal.v1",
-            "spans_file": SPANS_JSONL,
-            "chain_file": CHAIN_JSONL,
-            "live_recording": live,
-            "manifest_wal": MANIFEST_WAL,
-        },
-        "redactions": bundle.redactions,
-        "redaction_policy": bundle.redaction_policy,
-        "audit": {"chain": [], "bundle_hash": ""},
-        "span_count": len(bundle.spans),
-        "span_ids": [s.span_id for s in bundle.spans],
-        "chain_tip": tip,
-        "chain_file": CHAIN_JSONL,
-        "spans_file": SPANS_JSONL,
-    }
-    # WAL first (append-only), then atomic tip replace — power-loss safe.
-    wal_record = {**manifest, "wal_ts": utc_now()}
-    append_jsonl_line(root / MANIFEST_WAL, wal_record)
-    # Live manifests are intentionally unsealed.
-    _atomic_write_text(path, json.dumps(manifest, indent=2, sort_keys=True))
-    return path
+    snapshot = snapshot_live_manifest(bundle, live=live, chain_tip=chain_tip)
+    _commit_live_records(root, [], snapshot, fsync=True)
+    return root / MANIFEST_NAME
 
 
 def recover_manifest_from_wal(directory: str | Path) -> dict[str, Any] | None:
@@ -403,6 +780,7 @@ def verify_live_chain_prefix(
     prev = ZERO_HASH
     for index, (raw, link) in enumerate(zip(spans, chain)):
         span = SageSpan.from_dict(raw)
+        require_normal_form(raw, span.to_dict(), f"live span at index={index}")
         content = span_content_hash(span)
         content_by_id[span.span_id] = content
         expected = make_chain_link(
@@ -433,18 +811,64 @@ def verify_live_chain_prefix(
     return prev if chain else ZERO_HASH
 
 
+MALFORMED_INPUT_ERRORS: tuple[type[BaseException], ...] = (
+    ValueError,  # includes json.JSONDecodeError and UnicodeDecodeError
+    KeyError,
+    TypeError,
+    AttributeError,
+    IndexError,
+)
+
+
 def verify_journal(
     directory: str | Path,
     *,
     allow_live: bool = True,
 ) -> dict[str, Any]:
-    """Fail-closed journal verification for CI / `sage verify-journal`."""
+    """Fail-closed journal verification for CI / `sage verify-journal`.
+
+    Every rejection is a `SageError`: malformed content raises `ChainIntegrityError`.
+    """
+    try:
+        return _verify_journal(directory, allow_live=allow_live)
+    except SageError:
+        raise
+    except MALFORMED_INPUT_ERRORS as exc:
+        raise ChainIntegrityError(f"malformed journal: {type(exc).__name__}: {exc}") from exc
+
+
+def _first_corrupt_line(path: Path) -> int | None:
+    """1-based number of the first complete line that is not a JSON object.
+
+    A crash can only tear the unterminated last line; a bad line that ends in a newline is
+    corruption. NUL-only lines (what power loss can leave behind) count as torn, not corrupt.
+    """
+    if not path.exists():
+        return None
+    for number, line in enumerate(path.read_bytes().split(b"\n")[:-1], start=1):
+        text = line.strip()
+        if not text.strip(b"\x00"):
+            continue
+        try:
+            obj = json.loads(text.decode("utf-8"))
+        except ValueError:
+            return number
+        if not isinstance(obj, dict):
+            return number
+    return None
+
+
+def _verify_journal(directory: str | Path, *, allow_live: bool) -> dict[str, Any]:
     root = journal_root(directory)
+    for name in (SPANS_JSONL, CHAIN_JSONL):
+        corrupt = _first_corrupt_line(root / name)
+        if corrupt is not None:
+            raise ChainIntegrityError(f"{name} line {corrupt} is corrupt (not a torn tail)")
     if not (root / MANIFEST_NAME).exists():
         recovered = recover_manifest_from_wal(root)
         if recovered is None:
             raise ChainIntegrityError(f"missing manifest and empty WAL under {root}")
-    manifest = json.loads((root / MANIFEST_NAME).read_text(encoding="utf-8"))
+    manifest = json.loads(read_text_file(root / MANIFEST_NAME))
     live = bool((manifest.get("metadata") or {}).get("live_recording"))
     spans, rejected = load_spans_jsonl(root / SPANS_JSONL)
     chain, chain_rej = load_jsonl_objects(root / CHAIN_JSONL)
@@ -537,7 +961,7 @@ def load_journal(
     verify: bool = False,
 ) -> IncidentBundle:
     root = journal_root(directory)
-    manifest = json.loads((root / MANIFEST_NAME).read_text(encoding="utf-8"))
+    manifest = json.loads(read_text_file(root / MANIFEST_NAME))
     span_dicts, rejected = load_spans_jsonl(root / SPANS_JSONL)
     chain_dicts, chain_rejected = load_jsonl_objects(root / CHAIN_JSONL)
     rejected += chain_rejected
@@ -563,10 +987,12 @@ def load_journal(
             bundle_hash=str((manifest.get("audit") or {}).get("bundle_hash") or ""),
         ),
     )
-    for raw in span_dicts:
+    for index, raw in enumerate(span_dicts):
         span = SageSpan.from_dict(raw, default_trace_id=bundle.bundle_id)
         if not span.trace_id:
             span.trace_id = bundle.bundle_id
+        if verify:
+            require_normal_form(raw, span.to_dict(), f"span at index={index}")
         bundle.spans.append(span)
     if verify:
         if manifest.get("manifest_seal"):
@@ -594,7 +1020,7 @@ def load_journal(
 def recover_journal(directory: str | Path) -> RecoveryReport:
     root = journal_root(directory)
     try:
-        manifest = json.loads((root / MANIFEST_NAME).read_text(encoding="utf-8"))
+        manifest = json.loads(read_text_file(root / MANIFEST_NAME))
     except Exception as exc:
         restored = recover_manifest_from_wal(root)
         if restored is None:

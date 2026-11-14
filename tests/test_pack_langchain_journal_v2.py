@@ -23,6 +23,7 @@ def test_live_journal_redacts_secrets_and_writes_chain(tmp_path):
     ) as rec:
         with rec.tool_call("auth", inputs={"api_key": "sk-supersecret-value", "q": "x"}) as tool:
             tool.set_output(token="abc123token", result="ok")
+        rec.flush_journal()  # default durability is "batch": commit before reading the live files
         raw = (journal / SPANS_JSONL).read_text(encoding="utf-8")
         assert "sk-supersecret-value" not in raw
         assert "[REDACTED]" in raw

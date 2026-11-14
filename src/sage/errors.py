@@ -21,6 +21,25 @@ class ChainIntegrityError(SageError):
     """Parent-hash / monotonic sequence / audit-chain invariant violated."""
 
 
+class AuditChainMismatchError(ChainIntegrityError, ValueError):
+    """Recomputed audit chain or bundle_hash differs from the stored one.
+
+    Also a ValueError: releases before 2.3 raised ValueError here.
+    """
+
+
+class SignatureMismatchError(ChainIntegrityError):
+    """Ed25519 signature is missing or does not verify against the pinned public key."""
+
+
+class ReceiptMismatchError(ChainIntegrityError):
+    """Verification receipt is unsigned, altered, failed, or bound to a different pack or policy."""
+
+
+class PolicyViolationError(ChainIntegrityError):
+    """The artifact verified but breaks the verification policy."""
+
+
 class SecurityDivergence(SageError):
     """Heal / make-test path attempted layout or parent-graph manipulation."""
 
@@ -40,3 +59,7 @@ class SecurityDivergence(SageError):
 
 class FaultRecoveryError(SageError):
     """Carcass is unrecoverable past the crash boundary."""
+
+
+class JournalWriteError(SageError):
+    """The live-journal writer failed; spans recorded after the failure are not on disk."""

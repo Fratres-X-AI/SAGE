@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 from collections.abc import Mapping
+from functools import lru_cache
 from typing import Any
 
 from sage.schema import AuditBlock, IncidentBundle, SCHEMA_VERSION
@@ -24,7 +25,8 @@ DEFAULT_VALUE_PATTERNS = (
     r"Bearer\s+[A-Za-z0-9_\-\.]+",
 )
 
-# Usage / metric keys that contain "token" but are not secrets.
+# Usage / metric keys that contain "token" but are not secrets. Exempt only while their value is a
+# number or a container of numbers (see `_is_usage_count`); a string under any of them is redacted.
 SAFE_KEY_ALLOWLIST = frozenset(
     {
         "input_tokens",
@@ -37,6 +39,13 @@ SAFE_KEY_ALLOWLIST = frozenset(
     }
 )
 
+# Key words that mark a credential even when the key also looks like a usage counter.
+_CREDENTIAL_KEY_WORDS = (
+    "access", "refresh", "auth", "bearer", "session", "csrf", "xsrf", "oauth", "jwt", "api_key",
+    "apikey", "secret", "private", "password", "credential", "cookie", "idtoken", "id_token",
+)
+_KEY_PART_RE = re.compile(r"[^a-z0-9]+")
+
 
 def canonical_json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
@@ -46,21 +55,154 @@ def sha256_digest(value: Any) -> str:
     return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
 
 
+@lru_cache(maxsize=512)
+def _compiled_pattern(pattern: str) -> "re.Pattern[str]":
+    """Compile a redaction value pattern once per process (invalid patterns still raise each time)."""
+    return re.compile(pattern)
+
+
+@lru_cache(maxsize=8192)
+def _sensitive_key_kind(key_l: str, key_fragments: tuple[str, ...]) -> int:
+    """0: not sensitive. 1: sensitive. 2: sensitive unless the value is a usage count."""
+    matched = [fragment for fragment in key_fragments if fragment in key_l]
+    if not matched:
+        return 0
+    if all(fragment == "token" for fragment in matched) and _is_usage_count_key(key_l):
+        return 2
+    return 1
+
+
+def _is_usage_count_key(key_l: str) -> bool:
+    if any(word in key_l for word in _CREDENTIAL_KEY_WORDS):
+        return False
+    parts = [part for part in _KEY_PART_RE.split(key_l) if part]
+    if "id" in parts or key_l.startswith("x-"):
+        return False
+    if key_l in SAFE_KEY_ALLOWLIST:
+        return True
+    for index, part in enumerate(parts):
+        if part.endswith(("tokens", "tokencount", "tokencounts")):
+            return True
+        if part == "token" and index + 1 < len(parts) and parts[index + 1] in ("count", "counts", "usage"):
+            return True
+    return False
+
+
+def _is_usage_count(value: Any, depth: int = 0) -> bool:
+    """A number, None, or a dict/list holding only those (token counts and usage details)."""
+    kind = type(value)
+    if value is None or kind is int or kind is float:
+        return True
+    if depth >= 8:
+        return False
+    if isinstance(value, Mapping):
+        return all(_is_usage_count(child, depth + 1) for child in value.values())
+    if isinstance(value, list):
+        return all(_is_usage_count(child, depth + 1) for child in value)
+    return False
+
+
+def _is_sensitive_key(key_l: str, key_fragments: tuple[str, ...], value: Any = None) -> bool:
+    kind = _sensitive_key_kind(key_l, key_fragments)
+    if kind == 2:
+        return not _is_usage_count(value)
+    return kind == 1
+
+
+@lru_cache(maxsize=512)
+def _split_patterns(value_patterns: tuple[str, ...]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    from sage.detectors import split_detector_patterns
+
+    return split_detector_patterns(value_patterns)
+
+
+def _path_key(path: str) -> str:
+    """The nearest non-index segment of a dotted path ("spans.0.inputs.ids.3" -> "ids")."""
+    for part in reversed(path.split(".")):
+        if part and not part.isdigit() and part != "$":
+            return part
+    return ""
+
+
+def _detect_int(value: int, detectors: tuple[str, ...]) -> bool:
+    if "card_number" not in detectors or value < 10**12:
+        return False
+    from sage.detectors import is_card_number
+
+    return is_card_number(str(value))
+
+
 def _scrub_string(
     text: str,
     *,
     path: str,
     redacted_paths: list[dict[str, str]] | None,
     value_patterns: tuple[str, ...],
+    key: str | None = None,
 ) -> str:
+    if type(value_patterns) is not tuple:
+        value_patterns = tuple(value_patterns)
+    regexes, detectors = _split_patterns(value_patterns)
     scrubbed = text
-    for pattern in value_patterns:
-        regex = re.compile(pattern)
+    for pattern in regexes:
+        regex = _compiled_pattern(pattern)
         if regex.search(scrubbed):
             scrubbed, count = regex.subn("[REDACTED]", scrubbed)
             if count and redacted_paths is not None:
                 redacted_paths.append({"path": path, "reason": f"value_pattern:{pattern}"})
+    if detectors:
+        from sage.detectors import apply_detectors
+
+        scrubbed, fired = apply_detectors(scrubbed, detectors, key=_path_key(path) if key is None else key)
+        if redacted_paths is not None:
+            for rule in fired:
+                redacted_paths.append({"path": path, "reason": f"detector:{rule}"})
     return scrubbed
+
+
+def _redact_untracked(
+    value: Any,
+    key_fragments: tuple[str, ...],
+    compiled: tuple["re.Pattern[str]", ...],
+    detectors: tuple[str, ...] = (),
+    key: str = "",
+) -> Any:
+    """`redact_value` without path bookkeeping. Same output; used when no redaction log is kept."""
+    kind = type(value)
+    if kind is str:
+        for regex in compiled:
+            if regex.search(value):
+                value = regex.sub("[REDACTED]", value)
+        if detectors:
+            from sage.detectors import apply_detectors
+
+            value = apply_detectors(value, detectors, key=key)[0]
+        return value
+    if kind is int and detectors and _detect_int(value, detectors):
+        return "[REDACTED]"
+    if value is None or kind is int or kind is float or kind is bool:
+        return value
+    if kind is dict or isinstance(value, Mapping):
+        redacted: dict[str, Any] = {}
+        for key, child in value.items():
+            key_s = key if type(key) is str else str(key)
+            if _is_sensitive_key(key_s.lower(), key_fragments, child):
+                redacted[key] = "[REDACTED]"
+            else:
+                redacted[key] = _redact_untracked(child, key_fragments, compiled, detectors, key_s)
+        return redacted
+    if isinstance(value, list):
+        return [_redact_untracked(child, key_fragments, compiled, detectors, key) for child in value]
+    if isinstance(value, str):
+        for regex in compiled:
+            if regex.search(value):
+                value = regex.sub("[REDACTED]", value)
+        if detectors:
+            from sage.detectors import apply_detectors
+
+            value = apply_detectors(value, detectors, key=key)[0]
+        return value
+    return value
 
 
 def redact_value(
@@ -70,19 +212,24 @@ def redact_value(
     redacted_paths: list[dict[str, str]] | None = None,
     key_fragments: tuple[str, ...] = DEFAULT_REDACTION_KEYS,
     value_patterns: tuple[str, ...] = DEFAULT_VALUE_PATTERNS,
+    _key: str | None = None,
 ) -> Any:
+    if type(key_fragments) is not tuple:
+        key_fragments = tuple(key_fragments)
+    if type(value_patterns) is not tuple:
+        value_patterns = tuple(value_patterns)
+    key = _path_key(path) if _key is None else _key
+    if redacted_paths is None:
+        regexes, detectors = _split_patterns(value_patterns)
+        compiled = tuple(_compiled_pattern(pattern) for pattern in regexes)
+        return _redact_untracked(value, key_fragments, compiled, detectors, key)
     if isinstance(value, Mapping):
         redacted: dict[str, Any] = {}
         for key, child in value.items():
             child_path = f"{path}.{key}" if path else str(key)
-            key_l = str(key).lower()
-            is_sensitive = any(fragment in key_l for fragment in key_fragments) and (
-                key_l not in SAFE_KEY_ALLOWLIST and not key_l.endswith("_tokens")
-            )
-            if is_sensitive:
+            if _is_sensitive_key(str(key).lower(), key_fragments, child):
                 redacted[key] = "[REDACTED]"
-                if redacted_paths is not None:
-                    redacted_paths.append({"path": child_path, "reason": "sensitive_key"})
+                redacted_paths.append({"path": child_path, "reason": "sensitive_key"})
             else:
                 redacted[key] = redact_value(
                     child,
@@ -90,6 +237,7 @@ def redact_value(
                     redacted_paths=redacted_paths,
                     key_fragments=key_fragments,
                     value_patterns=value_patterns,
+                    _key=str(key),
                 )
         return redacted
     if isinstance(value, list):
@@ -100,6 +248,7 @@ def redact_value(
                 redacted_paths=redacted_paths,
                 key_fragments=key_fragments,
                 value_patterns=value_patterns,
+                _key=key,
             )
             for index, child in enumerate(value)
         ]
@@ -109,8 +258,70 @@ def redact_value(
             path=path or "$",
             redacted_paths=redacted_paths,
             value_patterns=value_patterns,
+            key=key,
         )
+    if type(value) is int and _detect_int(value, _split_patterns(value_patterns)[1]):
+        redacted_paths.append({"path": path or "$", "reason": "detector:card_number"})
+        return "[REDACTED]"
     return value
+
+
+def resolve_redaction_rules(
+    policy: Mapping[str, Any] | None,
+    *,
+    key_fragments: tuple[str, ...] | None = None,
+    value_patterns: tuple[str, ...] | None = None,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    policy = policy or {}
+    fragments = key_fragments or tuple(policy.get("key_fragments") or DEFAULT_REDACTION_KEYS)
+    patterns = value_patterns or tuple(policy.get("value_patterns") or DEFAULT_VALUE_PATTERNS)
+    if policy.get("detectors"):
+        # Opt-in detectors ride along in the pattern tuple as "detector:<id>" entries.
+        from sage.detectors import DETECTOR_PREFIX, resolve_detector_ids
+
+        extra = [f"{DETECTOR_PREFIX}{d}" for d in resolve_detector_ids(policy["detectors"])]
+        patterns = (*patterns, *(p for p in extra if p not in patterns))
+    return fragments, patterns
+
+
+def redact_span(
+    span: Any,
+    *,
+    key_fragments: tuple[str, ...],
+    value_patterns: tuple[str, ...],
+    base: str = "span",
+    redacted_paths: list[dict[str, str]] | None = None,
+) -> None:
+    """Apply the redaction policy in place to every span field that can carry captured text.
+
+    Identity fields (ids, type, status, timestamps, error.type) are left intact.
+    """
+
+    def value(v: Any, path: str) -> Any:
+        return redact_value(
+            v,
+            path=path,
+            redacted_paths=redacted_paths,
+            key_fragments=key_fragments,
+            value_patterns=value_patterns,
+        )
+
+    def text(v: str, path: str) -> str:
+        return _scrub_string(v, path=path, redacted_paths=redacted_paths, value_patterns=value_patterns)
+
+    span.inputs = value(span.inputs, f"{base}.inputs")
+    span.outputs = value(span.outputs, f"{base}.outputs")
+    span.attributes = value(span.attributes, f"{base}.attributes")
+    span.data = value(span.data, f"{base}.data")
+    span.events = [value(ev, f"{base}.events.{ei}") for ei, ev in enumerate(span.events or [])]
+    if span.name:
+        span.name = text(span.name, f"{base}.name") or span.name
+    if span.failure_context:
+        span.failure_context = text(span.failure_context, f"{base}.failure_context")
+    if span.error is not None:
+        span.error.message = text(span.error.message or "", f"{base}.error.message")
+        if span.error.stack:
+            span.error.stack = text(span.error.stack, f"{base}.error.stack")
 
 
 def redact_bundle(
@@ -119,15 +330,18 @@ def redact_bundle(
     key_fragments: tuple[str, ...] | None = None,
     value_patterns: tuple[str, ...] | None = None,
 ) -> IncidentBundle:
-    fragments = key_fragments or tuple(
-        bundle.redaction_policy.get("key_fragments") or DEFAULT_REDACTION_KEYS
-    )
-    patterns = value_patterns or tuple(
-        bundle.redaction_policy.get("value_patterns") or DEFAULT_VALUE_PATTERNS
+    fragments, patterns = resolve_redaction_rules(
+        bundle.redaction_policy, key_fragments=key_fragments, value_patterns=value_patterns
     )
     # Bypass strict validation during clone of in-progress/raw bundles.
-    raw = copy.deepcopy(bundle.to_dict())
+    # Spans are not deep-copied: `redact_span` below rebuilds every container they hold, so the
+    # clone never shares a mutable container with the source. Everything else is deep-copied.
+    raw = bundle.to_dict()
+    span_dicts = raw.pop("spans")
     raw["audit"] = {"chain": [], "bundle_hash": ""}
+    raw["audit_chain"] = []
+    raw = copy.deepcopy(raw)
+    raw["spans"] = span_dicts
     clone = IncidentBundle.from_dict(raw)
     redactions: list[dict[str, str]] = []
     clone.metadata = redact_value(
@@ -137,55 +351,32 @@ def redact_bundle(
         key_fragments=fragments,
         value_patterns=patterns,
     )
+    if clone.title:
+        clone.title = _scrub_string(
+            clone.title, path="title", redacted_paths=redactions, value_patterns=patterns
+        ) or clone.title
+    if isinstance(clone.root_cause_hint, str):
+        clone.root_cause_hint = _scrub_string(
+            clone.root_cause_hint, path="root_cause_hint", redacted_paths=redactions, value_patterns=patterns
+        )
     for span_index, span in enumerate(clone.spans):
-        base = f"spans.{span_index}"
-        span.inputs = redact_value(
-            span.inputs,
-            path=f"{base}.inputs",
-            redacted_paths=redactions,
+        redact_span(
+            span,
             key_fragments=fragments,
             value_patterns=patterns,
-        )
-        span.outputs = redact_value(
-            span.outputs,
-            path=f"{base}.outputs",
+            base=f"spans.{span_index}",
             redacted_paths=redactions,
-            key_fragments=fragments,
-            value_patterns=patterns,
         )
-        span.attributes = redact_value(
-            span.attributes,
-            path=f"{base}.attributes",
-            redacted_paths=redactions,
-            key_fragments=fragments,
-            value_patterns=patterns,
-        )
-        span.data = redact_value(
-            span.data,
-            path=f"{base}.data",
-            redacted_paths=redactions,
-            key_fragments=fragments,
-            value_patterns=patterns,
-        )
-        span.events = [
-            redact_value(
-                ev,
-                path=f"{base}.events.{ei}",
-                redacted_paths=redactions,
-                key_fragments=fragments,
-                value_patterns=patterns,
-            )
-            if isinstance(ev, dict)
-            else ev
-            for ei, ev in enumerate(span.events or [])
-        ]
     clone.redactions = [*clone.redactions, *redactions]
+    regexes, detectors = _split_patterns(tuple(patterns))
     clone.redaction_policy = {
         **clone.redaction_policy,
         "key_fragments": list(fragments),
-        "value_patterns": list(patterns),
+        "value_patterns": list(regexes),
         "applied": True,
     }
+    if detectors:
+        clone.redaction_policy["detectors"] = list(detectors)
     return clone
 
 
@@ -320,13 +511,35 @@ def verify_parent_content_hashes(bundle: IncidentBundle) -> None:
             )
 
 
+def require_normal_form(stored: Any, normalized: Any, what: str) -> None:
+    """Fail closed unless the stored object is exactly the normalized one the hashes cover.
+
+    Hashes are computed over the normalized form, so any stored difference (an unknown key, a
+    missing default, a different JSON type) would otherwise be accepted without being bound.
+    """
+    from sage.errors import ChainIntegrityError
+
+    if canonical_json(stored) == canonical_json(normalized):
+        return
+    field = "?"
+    if isinstance(stored, dict) and isinstance(normalized, dict):
+        for key in sorted(set(stored) | set(normalized)):
+            if key not in stored or key not in normalized or canonical_json(stored[key]) != canonical_json(
+                normalized[key]
+            ):
+                field = key
+                break
+    raise ChainIntegrityError(f"{what} is not in normal form (field {field!r}); stored content is not hash-bound")
+
+
 def require_verified(bundle: IncidentBundle) -> IncidentBundle:
     from sage.concurrency import validate_monotonic_chain
+    from sage.errors import AuditChainMismatchError
 
     bundle.validate(strict=True)
     verify_parent_integrity(bundle)
     validate_monotonic_chain(bundle)
     if not verify_audit_chain(bundle):
-        raise ValueError("audit chain or bundle_hash verification failed")
+        raise AuditChainMismatchError("audit chain or bundle_hash verification failed")
     verify_parent_content_hashes(bundle)
     return bundle

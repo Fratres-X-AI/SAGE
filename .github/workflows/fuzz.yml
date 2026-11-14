@@ -1,0 +1,66 @@
+name: fuzz
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: "Seconds per harness"
+        default: "600"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  atheris:
+    strategy:
+      fail-fast: false
+      matrix:
+        harness: [fuzz_pack, fuzz_journal, fuzz_policy, fuzz_receipt]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]" "atheris==3.0.0"
+      - name: Seed corpus from the conformance vectors
+        run: python fuzz/write_corpus.py
+      - name: Fuzz
+        env:
+          SECONDS_PER_HARNESS: ${{ github.event.inputs.seconds || '600' }}
+          HARNESS: ${{ matrix.harness }}
+        run: |
+          mkdir -p fuzz/crashes
+          python "fuzz/${HARNESS}.py" "fuzz/corpus/${HARNESS}" \
+            -max_total_time="${SECONDS_PER_HARNESS}" -rss_limit_mb=2048 -timeout=20 \
+            -artifact_prefix=fuzz/crashes/
+      - name: Upload crashing inputs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: crashes-${{ matrix.harness }}
+          path: fuzz/crashes/
+          retention-days: 14
+
+  hypothesis-thorough:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Property tests (thorough profile)
+        env:
+          HYPOTHESIS_PROFILE: thorough
+        run: python -m pytest tests/property -q --tb=short

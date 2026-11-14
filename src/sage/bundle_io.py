@@ -5,11 +5,12 @@ import os
 import tempfile
 from pathlib import Path
 
-from sage.audit import require_verified
-from sage.blobs import BlobStore, rehydrate_bundle_dict
+from sage.audit import require_normal_form, require_verified
+from sage.blobs import BlobStore, rehydrate_bundle_dict, resolve_blob_root
 from sage.errors import BlobIntegrityError
+from sage.locks import replace_file
 from sage.journal import is_journal_path, journal_root, load_journal, save_journal
-from sage.schema import IncidentBundle
+from sage.schema import SCHEMA_VERSION, IncidentBundle
 
 
 def _resolve_store(
@@ -20,9 +21,7 @@ def _resolve_store(
         return blob_store
     if blob_store is not None:
         return BlobStore(blob_store)
-    meta = data.get("metadata") or {}
-    root = meta.get("blob_store")
-    return BlobStore(root) if root else BlobStore()
+    return BlobStore(resolve_blob_root(data))
 
 
 def rehydrate_bundle(
@@ -64,6 +63,8 @@ def load_bundle(
     raw = json.loads(p.read_text(encoding="utf-8"))
     compact = IncidentBundle.from_dict(raw)
     if verify:
+        if isinstance(raw, dict) and raw.get("schema_version") == SCHEMA_VERSION:
+            require_normal_form(raw, compact.to_dict(), "bundle")
         require_verified(compact)
     if not rehydrate:
         return compact
@@ -121,7 +122,7 @@ def save_bundle(
             handle.write(payload)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(tmp_name, str(output))
+        replace_file(tmp_name, str(output))
     except Exception:
         Path(tmp_name).unlink(missing_ok=True)
         raise

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -12,8 +13,11 @@ from sage.replay import pure_recorded_replay, replay_bundle
 from sage.regression import write_regression_test
 
 
-def _fail(message: str, code: int = 1) -> int:
-    print(json.dumps({"ok": False, "error": message}, indent=2), file=sys.stderr)
+def _fail(message: str, code: int = 1, *, error_type: str | None = None) -> int:
+    payload: dict = {"ok": False, "error": message}
+    if error_type:
+        payload["error_type"] = error_type
+    print(json.dumps(payload, indent=2), file=sys.stderr)
     return code
 
 
@@ -136,21 +140,63 @@ def _cmd_verify_receipt(args: argparse.Namespace) -> int:
 
 
 def _cmd_handoff(args: argparse.Namespace) -> int:
-    from sage.handoff import create_handoff
+    from sage.handoff import HandoffLeakError, HandoffSetupError, create_handoff
 
+    def warn(report) -> None:
+        print(
+            f"sage handoff: warning: {report.summary()}. Values are not shown. Run "
+            f"`sage scan {Path(args.out_dir) / 'evidence.sage.tar.gz'}` for locations; "
+            "pass --fail-on-findings to block the handoff.",
+            file=sys.stderr,
+        )
+
+    hmac_key = args.hmac_key or os.environ.get("SAGE_PACK_KEY") or None
+    if args.hmac_key_file:
+        try:
+            hmac_key = Path(args.hmac_key_file).read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            return _fail(f"cannot read --hmac-key-file: {exc}", code=2)
+        if not hmac_key:
+            return _fail(f"--hmac-key-file is empty: {args.hmac_key_file}", code=2)
     try:
         out = create_handoff(
             args.path,
             args.out_dir,
-            hmac_key=args.hmac_key,
+            hmac_key=hmac_key,
             policy=args.policy,
             actor=args.actor,
             key_id=args.key_id,
+            public_key=args.public_key,
+            sign=True if args.sign else None,
+            overwrite=args.overwrite,
+            blob_root=args.blob_root,
+            fail_on_findings=args.fail_on_findings,
+            on_scan_findings=warn,
         )
+    except HandoffSetupError as exc:
+        return _fail(str(exc), code=2)
+    except HandoffLeakError as exc:
+        return _fail(str(exc), code=1)
     except Exception as exc:
         return _fail(str(exc))
     print(str(out))
     return 0
+
+
+def _cmd_scan(args: argparse.Namespace) -> int:
+    from sage.scan import ScanSetupError, format_report, scan_path
+
+    try:
+        report = scan_path(args.path, rules=args.rule or None, blob_root=args.blob_root)
+    except ScanSetupError as exc:
+        return _fail(str(exc), code=2)
+    except ValueError as exc:
+        return _fail(str(exc), code=2)
+    if args.json:
+        print(json.dumps(report.to_dict(), indent=2, sort_keys=True))
+    else:
+        print(format_report(report))
+    return 0 if report.ok else 1
 
 
 def _cmd_version(_args: argparse.Namespace) -> int:
@@ -170,6 +216,7 @@ def _cmd_pack(args: argparse.Namespace) -> int:
             hmac_key=args.hmac_key,
             pack_version=args.pack_version,
             key_id=args.key_id,
+            blob_store=args.blob_root,
             sign=bool(getattr(args, "sign", False)) or None,
         )
     except Exception as exc:
@@ -208,6 +255,20 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
     return 0 if report.get("ok") else 1
 
 
+def _cmd_key_fingerprint(args: argparse.Namespace) -> int:
+    from sage.signing import public_key_fingerprint
+
+    try:
+        material = Path(args.file).read_text(encoding="utf-8")
+        fingerprint = public_key_fingerprint(material)
+    except OSError as exc:
+        return _fail(f"cannot read key file {args.file}: {exc.strerror or exc}", 2, error_type=type(exc).__name__)
+    except ValueError as exc:
+        return _fail(f"not an Ed25519 public key: {exc}", 2, error_type="ValueError")
+    print(json.dumps({"alg": "ed25519", "fingerprint_sha256": fingerprint, "file": str(args.file)}, indent=2))
+    return 0
+
+
 def _cmd_keygen(args: argparse.Namespace) -> int:
     from sage.signing import write_keypair
 
@@ -231,6 +292,10 @@ def _cmd_import(args: argparse.Namespace) -> int:
     try:
         if args.format == "openinference":
             bundle = load_openinference_file(args.path, title=args.title)
+        elif args.format == "otlp":
+            from sage.importers.otlp import load_otlp_file
+
+            bundle = load_otlp_file(args.path, title=args.title)
         else:
             bundle = _load_verified(args.path, rehydrate=False)
         save_bundle(bundle, args.out)
@@ -413,10 +478,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     keygen = sub.add_parser(
         "keygen",
-        help="Generate Ed25519 keypair (requires: pip install -e '.[sign]')",
+        help="Generate Ed25519 keypair (requires the [sign] extra: pip install \"<wheel>[sign]\" or pip install cryptography)",
     )
     keygen.add_argument("--out", required=True, help="Output JSON path (keep private)")
     keygen.set_defaults(func=_cmd_keygen)
+
+    key = sub.add_parser("key", help="Key utilities")
+    key_sub = key.add_subparsers(dest="key_command", required=True)
+    key_fp = key_sub.add_parser(
+        "fingerprint",
+        help="SHA-256 fingerprint of an Ed25519 public key file (compare with the producer's, out of band)",
+    )
+    key_fp.add_argument("file", help="file holding the urlsafe-base64 public key (for example ed25519.public.txt)")
+    key_fp.set_defaults(func=_cmd_key_fingerprint)
 
     inspect = sub.add_parser("inspect", help="Validate and summarize an incident bundle")
     inspect.add_argument("path")
@@ -451,7 +525,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     imp = sub.add_parser("import", help="Import a trace into a SAGE bundle")
     imp.add_argument("path")
-    imp.add_argument("--format", choices=["openinference", "sage"], default="openinference")
+    imp.add_argument(
+        "--format",
+        choices=["openinference", "otlp", "sage"],
+        default="openinference",
+        help="otlp: OTLP JSON, JSON Lines or protobuf (protobuf needs the [otlp] extra)",
+    )
     imp.add_argument("--title", default=None)
     imp.add_argument("--out", required=True)
     imp.set_defaults(func=_cmd_import)
@@ -563,14 +642,58 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_r.set_defaults(func=_cmd_verify_receipt)
 
-    handoff = sub.add_parser("handoff", help="Build offline evidence handoff kit (pack+policy+receipt)")
-    handoff.add_argument("path")
-    handoff.add_argument("--out-dir", required=True)
-    handoff.add_argument("--hmac-key", default=None)
-    handoff.add_argument("--policy", default=None)
-    handoff.add_argument("--actor", default="handoff")
-    handoff.add_argument("--key-id", default=None)
+    handoff = sub.add_parser(
+        "handoff",
+        help="Build offline evidence handoff kit (pack+policy+receipt); `sage handoff verify <kit>` checks one",
+        description="Build an offline evidence handoff kit. To verify a kit, run `sage handoff verify <kit>`.",
+    )
+    handoff.add_argument("path", help="Sealed bundle (.sage.json) or journal directory to hand off")
+    handoff.add_argument("--out-dir", required=True, help="Empty directory to write the kit to")
+    handoff_key = handoff.add_mutually_exclusive_group()
+    handoff_key.add_argument(
+        "--hmac-key-file",
+        default=None,
+        help="File holding the HMAC key (preferred: keeps the key off the command line)",
+    )
+    handoff_key.add_argument(
+        "--hmac-key", default=None, help="HMAC key value (default: the SAGE_PACK_KEY environment variable)"
+    )
+    handoff.add_argument("--policy", default=None, help="Verify policy JSON file for the kit (default: handoff-default)")
+    handoff.add_argument("--actor", default="handoff", help="Name recorded in the witness log and receipt")
+    handoff.add_argument("--key-id", default=None, help="Key id to record with the HMAC attestation")
+    handoff.add_argument(
+        "--public-key",
+        default=None,
+        help="Pinned Ed25519 public key (base64) used to verify the signature before promotion",
+    )
+    handoff.add_argument(
+        "--sign",
+        action="store_true",
+        help="Ed25519-sign the pack (needs SAGE_SIGN_PRIVATE_KEY / .[sign])",
+    )
+    handoff.add_argument("--overwrite", action="store_true", help="Replace a non-empty --out-dir")
+    handoff.add_argument("--blob-root", default=None, help="Blob store the bundle was recorded with")
+    handoff.add_argument(
+        "--fail-on-findings",
+        action="store_true",
+        help="Refuse to build the kit when the pre-share leak scan finds anything (default: warn)",
+    )
     handoff.set_defaults(func=_cmd_handoff)
+
+    scan = sub.add_parser(
+        "scan",
+        help="Pre-share leak check of a pack, bundle, or journal (never prints the values found)",
+    )
+    scan.add_argument("path")
+    scan.add_argument("--json", action="store_true", help="Machine-readable report")
+    scan.add_argument(
+        "--rule",
+        action="append",
+        default=None,
+        help="Only run this rule id (repeatable). Default: every rule",
+    )
+    scan.add_argument("--blob-root", default=None, help="Blob store for a bundle or journal's blobs")
+    scan.set_defaults(func=_cmd_scan)
 
     pack = sub.add_parser("pack", help="Pack bundle/journal + CAS blobs into portable .sage.tar.gz")
     pack.add_argument("path")
@@ -581,6 +704,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="HMAC key for pack attestation (or set SAGE_PACK_KEY)",
     )
     pack.add_argument("--pack-version", type=int, default=2, choices=[1, 2])
+    pack.add_argument("--blob-root", default=None, help="Blob store the bundle was recorded with")
     pack.add_argument("--key-id", default=None)
     pack.add_argument(
         "--sign",
@@ -668,6 +792,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    # `sage handoff <path>` builds a kit; `sage handoff verify <kit>` verifies one.
+    if argv[:2] == ["handoff", "verify"]:
+        from sage.handoff_verify import main as verify_kit
+
+        raise SystemExit(verify_kit(argv[2:], kit_required=True))
     parser = build_parser()
     args = parser.parse_args(argv)
     code = args.func(args)

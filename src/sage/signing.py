@@ -16,9 +16,29 @@ import os
 from pathlib import Path
 from typing import Any
 
-from sage.errors import ChainIntegrityError
+from sage.errors import ChainIntegrityError, SignatureMismatchError
 
-_CRYPTO_HINT = "Ed25519 signing requires: pip install -e '.[sign]' (cryptography)"
+def install_hint() -> str:
+    """How to add Ed25519 support to the SAGE that is installed right now."""
+    from sage.version import __version__
+
+    return (
+        f"Ed25519 signatures require the 'cryptography' package, which SAGE {__version__} in this "
+        f"environment does not have: python -m pip install cryptography "
+        f"(or reinstall with the extra: python -m pip install "
+        f"\"<path to>/sage_incident_bundles-{__version__}-py3-none-any.whl[sign]\")"
+    )
+
+
+_CRYPTO_HINT = install_hint()
+_PURE_VERIFY = False
+
+
+def enable_pure_python_verification() -> None:
+    """Let signature *verification* fall back to the bundled pure-Python Ed25519 when
+    ``cryptography`` is missing. Used by the single-file verifier; signing still needs cryptography."""
+    global _PURE_VERIFY
+    _PURE_VERIFY = True
 
 
 def signing_available() -> bool:
@@ -28,6 +48,10 @@ def signing_available() -> bool:
         return True
     except ImportError:
         return False
+
+
+def verification_available() -> bool:
+    return signing_available() or _PURE_VERIFY
 
 
 def _b64e(data: bytes) -> str:
@@ -75,14 +99,28 @@ def load_private_key(material: str | None = None):
 
 
 def load_public_key(material: str | None = None):
-    if not signing_available():
+    if not verification_available():
         raise ChainIntegrityError(_CRYPTO_HINT)
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-
     raw = material or os.environ.get("SAGE_SIGN_PUBLIC_KEY")
     if not raw:
         raise ChainIntegrityError("missing Ed25519 public key (SAGE_SIGN_PUBLIC_KEY)")
+    if not signing_available():
+        from sage._ed25519_verify import PurePublicKey
+
+        return PurePublicKey(_b64d(raw.strip()))
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
     return Ed25519PublicKey.from_public_bytes(_b64d(raw.strip()))
+
+
+def public_key_fingerprint(material: str) -> str:
+    """SHA-256 (hex) of the raw 32-byte Ed25519 public key encoded in ``material`` (urlsafe base64)."""
+    import hashlib
+
+    raw = _b64d(material.strip())
+    if len(raw) != 32:
+        raise ValueError(f"not an Ed25519 public key: decodes to {len(raw)} bytes, expected 32")
+    return hashlib.sha256(raw).hexdigest()
 
 
 def resolve_pinned_public_key(
@@ -151,7 +189,7 @@ def verify_signature(
     key_ring: str | Path | dict[str, Any] | None = None,
 ) -> None:
     if not isinstance(signature, dict) or signature.get("alg") != "ed25519" or not signature.get("sig"):
-        raise ChainIntegrityError("missing ed25519 signature block")
+        raise SignatureMismatchError("missing ed25519 signature block")
     if isinstance(payload, dict):
         body = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     else:
@@ -160,7 +198,7 @@ def verify_signature(
     pinned = resolve_pinned_public_key(public_key=public_key, key_id=key_id, key_ring=key_ring)
     if require_pinned:
         if not pinned:
-            raise ChainIntegrityError(
+            raise SignatureMismatchError(
                 "pinned Ed25519 public key required "
                 "(SAGE_SIGN_PUBLIC_KEY / --public-key / key ring); TOFU refused"
             )
@@ -173,7 +211,8 @@ def verify_signature(
     try:
         key.verify(_b64d(str(signature["sig"])), body)
     except Exception as exc:  # cryptography InvalidSignature
-        raise ChainIntegrityError(f"ed25519 signature verification failed: {exc}") from exc
+        detail = str(exc) or "signature does not match the pinned public key"
+        raise SignatureMismatchError(f"ed25519 signature verification failed: {detail}") from exc
 
 
 def write_keypair(path: str | Path) -> Path:
