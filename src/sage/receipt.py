@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from sage.errors import ChainIntegrityError, ReceiptMismatchError
+from sage.hmac_hex import hmac_hex_matches
 from sage.keys import resolve_key_material
 from sage.schema import utc_now
 
@@ -118,7 +119,7 @@ def verify_receipt(
             raise ChainIntegrityError("receipt has MAC but no verify key available")
         payload = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
         expected = hmac.new(key, payload, hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(str(att["mac"]), expected):
+        if not hmac_hex_matches(att.get("mac"), expected):
             raise ReceiptMismatchError("receipt MAC mismatch")
     if expect_fingerprint and body.get("artifact_fingerprint") != expect_fingerprint:
         raise ReceiptMismatchError(

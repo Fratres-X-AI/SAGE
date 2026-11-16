@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from sage.errors import ChainIntegrityError
+from sage.hmac_hex import hmac_hex_matches
 from sage.journal import append_jsonl_line, load_jsonl_objects
 from sage.schema import utc_now
 
@@ -117,7 +118,7 @@ def verify_witness_log(
             if key is None:
                 raise ChainIntegrityError("witness HMAC required but no key available")
             expected_mac = witness_mac(unsigned, key)
-            if not hmac.compare_digest(str(att.get("mac") or ""), expected_mac):
+            if not hmac_hex_matches(att.get("mac"), expected_mac):
                 raise ChainIntegrityError(f"witness HMAC mismatch at index={i}")
             hmac_verified = True
         prev = str(claimed_hash)
