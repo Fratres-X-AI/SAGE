@@ -13,6 +13,7 @@ from pathlib import Path
 from sage.blobs import BLOB_MARKER, BlobStore, _record_blob_store, blob_store_hint, is_blob_ref, require_digest
 from sage.bundle_io import load_bundle
 from sage.errors import ChainIntegrityError, SignatureMismatchError
+from sage.hmac_hex import hmac_hex_matches
 from sage.journal import load_jsonl_objects, save_journal
 from sage.merkle import chain_merkle_root, merkle_root
 from sage.schema import SCHEMA_VERSION
@@ -194,7 +195,7 @@ def verify_pack_meta(
             expected = attest_custody(custody_payload, hmac_key)
         else:
             expected = attest_digest(content_digest, hmac_key)
-        if not hmac.compare_digest(str(att["mac"]), expected):
+        if not hmac_hex_matches(att.get("mac"), expected):
             raise ChainIntegrityError("pack attestation MAC mismatch")
     elif att.get("mac") and att.get("alg") == "hmac-sha256":
         # Presence without key: still require content_digest match above.

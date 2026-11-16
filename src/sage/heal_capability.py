@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from sage.errors import SecurityDivergence
+from sage.hmac_hex import hmac_hex_matches
 from sage.schema import IncidentBundle, new_id, utc_now
 
 ALLOWED_HEAL_FIELDS = frozenset(
@@ -136,7 +137,7 @@ class HealCapability:
             if key is None:
                 raise SecurityDivergence("heal capability MAC required but no SAGE_HEAL_KEY/SAGE_PACK_KEY")
             expected_mac = capability_mac(cap.to_dict(), key)
-            if not cap.mac or not hmac.compare_digest(cap.mac, expected_mac):
+            if not hmac_hex_matches(cap.mac, expected_mac):
                 raise SecurityDivergence(
                     "heal capability MAC mismatch (keyed attestation failed)",
                     details={"expected": expected_mac, "got": cap.mac},
